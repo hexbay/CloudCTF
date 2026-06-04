@@ -43,20 +43,20 @@ CloudCTF 是一个面向 **CTF 竞赛** 与 **漏洞训练靶场** 的一体化�
 
 | 文件 | 说明 |
 | --- | --- |
-| `cloudflag-<版本>-linux-amd64` | API 服务（已内嵌前端），x86_64 |
-| `cloudflag-<版本>-linux-arm64` | API 服务（已内嵌前端），ARM64 |
-| `cloudflag-worker-<版本>-linux-<arch>` | 后台任务进程（动态靶机巡检 / 清理等） |
+| `cloudctf-<版本>-linux-amd64` | API 服务（已内嵌前端），x86_64 |
+| `cloudctf-<版本>-linux-arm64` | API 服务（已内嵌前端），ARM64 |
+| `cloudctf-worker-<版本>-linux-<arch>` | 后台任务进程（动态靶机巡检 / 清理等） |
 | `*.sha256` | 对应文件的校验和 |
 
 ```bash
 # 1. 下载并校验
-sha256sum -c cloudflag-v0.0.1-linux-amd64.sha256
+sha256sum -c cloudctf-v0.0.1-linux-amd64.sha256
 
 # 2. 赋予执行权限
-chmod +x cloudflag-v0.0.1-linux-amd64
+chmod +x cloudctf-v0.0.1-linux-amd64
 
 # 3. 启动（默认 SQLite，监听 :8005）
-./cloudflag-v0.0.1-linux-amd64
+./cloudctf-v0.0.1-linux-amd64
 ```
 
 启动后访问：
@@ -67,7 +67,7 @@ chmod +x cloudflag-v0.0.1-linux-amd64
 如需动态靶机等后台任务，另起 worker 进程：
 
 ```bash
-./cloudflag-worker-v0.0.1-linux-amd64
+./cloudctf-worker-v0.0.1-linux-amd64
 ```
 
 ### 方式二：Docker
@@ -92,7 +92,7 @@ docker run -d --name cloudctf \
 | `HOST` | `0.0.0.0` | 监听地址 |
 | `PORT` | `8005` | 监听端口 |
 | `APP_ENV` | `development` | 运行环境：`development` / `production` |
-| `DATABASE_URI` | `sqlite://data/cloudflag.db` | 数据库连接，支持 SQLite / MySQL |
+| `DATABASE_URI` | `sqlite://data/cloudctf.db` | 数据库连接，支持 SQLite / MySQL |
 | `JWT_SECRET` | `change-me` | **务必在生产环境修改为随机值** |
 | `REDIS_ADDR` | `localhost:6379` | Redis 地址（worker / 部分缓存使用） |
 | `ALLOWED_ORIGINS` | `*` | CORS 允许的来源，逗号分隔 |
@@ -105,10 +105,10 @@ docker run -d --name cloudctf \
 
 ```bash
 # SQLite（默认，零依赖）
-DATABASE_URI="sqlite://data/cloudflag.db" ./cloudflag-...
+DATABASE_URI="sqlite://data/cloudctf.db" ./cloudflag-...
 
 # MySQL（生产推荐）
-DATABASE_URI="mysql://user:pass@tcp(127.0.0.1:3306)/cloudctf?charset=utf8mb4&parseTime=True&loc=Local" ./cloudflag-...
+DATABASE_URI="mysql://user:pass@tcp(127.0.0.1:3306)/cloudctf?charset=utf8mb4&parseTime=True&loc=Local" ./cloudctf-...
 ```
 
 ## 确认运行

@@ -43,32 +43,27 @@ CloudCTF 是一个面向 **CTF 竞赛** 与 **漏洞训练靶场** 的一体化�
 
 | 文件 | 说明 |
 | --- | --- |
-| `cloudctf-<版本>-linux-amd64` | API 服务（已内嵌前端），x86_64 |
-| `cloudctf-<版本>-linux-arm64` | API 服务（已内嵌前端），ARM64 |
-| `cloudctf-worker-<版本>-linux-<arch>` | 后台任务进程（动态靶机巡检 / 清理等） |
+| `cloudctf-linux-amd64` | API 服务（已内嵌前端），x86_64 |
+| `cloudctf-linux-arm64` | API 服务（已内嵌前端），ARM64 |
 | `*.sha256` | 对应文件的校验和 |
 
 ```bash
-# 1. 下载并校验
-sha256sum -c cloudctf-v0.0.1-linux-amd64.sha256
+# 1. 下载最新版本并校验
+curl -LO https://github.com/hexbay/CloudCTF/releases/latest/download/cloudctf-linux-amd64
+curl -LO https://github.com/hexbay/CloudCTF/releases/latest/download/cloudctf-linux-amd64.sha256
+sha256sum -c cloudctf-linux-amd64.sha256
 
 # 2. 赋予执行权限
-chmod +x cloudctf-v0.0.1-linux-amd64
+chmod +x cloudctf-linux-amd64
 
 # 3. 启动（默认 SQLite，监听 :8005）
-./cloudctf-v0.0.1-linux-amd64
+./cloudctf-linux-amd64
 ```
 
 启动后访问：
 
 - 选手端：`http://<服务器IP>:8005/`
 - 管理后台：`http://<服务器IP>:8005/admin`
-
-如需动态靶机等后台任务，另起 worker 进程：
-
-```bash
-./cloudctf-worker-v0.0.1-linux-amd64
-```
 
 ### 方式二：Docker
 
@@ -94,7 +89,7 @@ docker run -d --name cloudctf \
 | `APP_ENV` | `development` | 运行环境：`development` / `production` |
 | `DATABASE_URI` | `sqlite://data/cloudctf.db` | 数据库连接，支持 SQLite / MySQL |
 | `JWT_SECRET` | `change-me` | **务必在生产环境修改为随机值** |
-| `REDIS_ADDR` | `localhost:6379` | Redis 地址（worker / 部分缓存使用） |
+| `REDIS_ADDR` | `localhost:6379` | Redis 地址（缓存等功能使用） |
 | `ALLOWED_ORIGINS` | `*` | CORS 允许的来源，逗号分隔 |
 | `STATIC_DIR` | `static` | 静态资源目录 |
 | `UPLOAD_DIR` | `static/uploads` | 上传文件目录 |

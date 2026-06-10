@@ -9,7 +9,7 @@
 [![Release](https://img.shields.io/github/v/release/hexbay/CloudCTF?style=flat-square)](https://github.com/hexbay/CloudCTF/releases)
 [![Docs](https://img.shields.io/badge/docs-在线文档-0f766e?style=flat-square)](http://ctf-docs.lostpeach.cn/)
 
-[在线文档](http://ctf-docs.lostpeach.cn/) · [下载](https://github.com/hexbay/CloudCTF/releases) · [快速开始](#快速开始)
+[在线预览](http://cloud-ctf.lostpeach.cn/) · [在线文档](http://ctf-docs.lostpeach.cn/) · [下载](https://github.com/hexbay/CloudCTF/releases) · [快速开始](#快速开始)
 
 </div>
 
@@ -23,6 +23,8 @@ CloudCTF 是一个面向 **CTF 竞赛** 与 **漏洞训练靶场** 的一体化�
 - **管理后台**：浏览器访问 `/admin`
 
 > 本仓库以预编译产物（二进制 / 镜像）形式发布，不包含完整源码。
+>
+> 在线预览环境：**http://cloud-ctf.lostpeach.cn/**
 >
 > 完整使用与部署文档请见在线文档站：**http://ctf-docs.lostpeach.cn/**
 
@@ -90,7 +92,7 @@ docker run -d --name cloudctf \
 | `DATABASE_URI` | `sqlite://data/cloudctf.db` | 数据库连接，支持 SQLite / MySQL |
 | `JWT_SECRET` | `change-me` | **务必在生产环境修改为随机值** |
 | `REDIS_ADDR` | `localhost:6379` | Redis 地址（缓存等功能使用） |
-| `ALLOWED_ORIGINS` | `*` | CORS 允许的来源，逗号分隔 |
+| `ALLOWED_ORIGINS` | `*` | CORS 允许的来源，逗号分隔；生产环境不能使用 `*` |
 | `STATIC_DIR` | `static` | 静态资源目录 |
 | `UPLOAD_DIR` | `static/uploads` | 上传文件目录 |
 | `LOG_LEVEL` | `info` | 日志级别：`debug` / `info` / `warn` / `error` |
@@ -116,8 +118,9 @@ curl http://127.0.0.1:8005/healthz
 ## 生产部署建议
 
 - 设置强随机 `JWT_SECRET`,并将 `APP_ENV=production`
+- 显式设置 `ALLOWED_ORIGINS` 为实际访问源，例如 `https://ctf.example.com` 或 `http://服务器IP:8005`；生产环境使用默认 `*` 会导致服务拒绝启动
 - 使用 MySQL 作为业务数据库，定期备份
-- 通过反向代理（Nginx / Caddy）启用 HTTPS,并将 `ALLOWED_ORIGINS` 收紧到实际域名
+- 可选通过反向代理（Nginx / Caddy）启用 80/443 与 HTTPS；反代时建议 `HOST=127.0.0.1`，并将 `ALLOWED_ORIGINS` 收紧到外部访问域名
 - 动态靶机所在主机需可访问 Docker（`/var/run/docker.sock` 或远程 Docker API）
 - 持久化 `data/`、`static/uploads/` 等目录
 

@@ -7,13 +7,11 @@ on:
   workflow_dispatch:  # 允许手动触发
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-  DOCKER_IMAGE_PREFIX: ${{ secrets.DOCKER_USERNAME }}  # 修改为你的 Docker Hub 用户名
-  # CloudCTF 开源仓库（仅发布二进制产物），格式 owner/repo，请改成你的实际仓库
-  CLOUDCTF_REPO: hexbay/CloudCTF
+  DOCKER_IMAGE_PREFIX: ${{ secrets.DOCKER_USERNAME }}
 
 jobs:
   # 提取版本号（其他 jobs 依赖）
@@ -132,8 +130,8 @@ jobs:
             release-bin/cloudctf-*
           retention-days: 1
 
-  # 同步产物到 CloudCTF 并创建 Release（仅 tag 触发）
-  release-cloudctf:
+  # 在当前仓库创建 Release（仅 tag 触发）
+  release:
     needs: [prepare, build-binaries]
     if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
@@ -147,11 +145,9 @@ jobs:
       - name: List assets
         run: ls -la release-assets
 
-      - name: Create Release on CloudCTF
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          repository: ${{ env.CLOUDCTF_REPO }}
-          token: ${{ secrets.CLOUDCTF_TOKEN }}
           tag_name: ${{ needs.prepare.outputs.version }}
           name: ${{ needs.prepare.outputs.version }}
           generate_release_notes: true

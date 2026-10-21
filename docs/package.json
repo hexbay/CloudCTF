@@ -17,7 +17,7 @@
   "author": "CloudCTF contributors",
   "license": "MIT",
   "devDependencies": {
-    "mermaid": "^10.9.3",
+    "mermaid": "^12.2.0",
     "rimraf": "^5.0.5",
     "vitepress": "^1.0.0"
   }

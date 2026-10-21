@@ -8,10 +8,10 @@
 
 [![Release](https://img.shields.io/github/v/release/hexbay/CloudCTF?style=flat-square)](https://github.com/hexbay/CloudCTF/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/hexbay/CloudCTF/integration-tests.yml?branch=main&style=flat-square&label=build)](https://github.com/hexbay/CloudCTF/actions)
-[![Docs](https://img.shields.io/badge/docs-在线文档-0f766e?style=flat-square)](http://ctf-docs.lostpeach.cn/)
+[![Docs](https://img.shields.io/badge/docs-在线文档-0f766e?style=flat-square)](https://hexbay.github.io/CloudCTF/)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-[在线预览](http://cloud-ctf.lostpeach.cn/) · [在线文档](http://ctf-docs.lostpeach.cn/) · [下载](https://github.com/hexbay/CloudCTF/releases) · [快速开始](#快速开始)
+[在线预览](http://cloud-ctf.lostpeach.cn/) · [在线文档](https://hexbay.github.io/CloudCTF/) · [下载](https://github.com/hexbay/CloudCTF/releases) · [快速开始](#快速开始)
 
 </div>
 
@@ -26,7 +26,7 @@ CloudCTF 是一个面向 **CTF 竞赛** 与 **漏洞训练靶场** 的一体化�
 
 > 在线预览环境：**http://cloud-ctf.lostpeach.cn/**
 >
-> 完整使用与部署文档请见在线文档站：**http://ctf-docs.lostpeach.cn/**
+> 完整使用与部署文档请见在线文档站：**https://hexbay.github.io/CloudCTF/**
 
 ## 功能特性
 
@@ -159,11 +159,11 @@ curl http://127.0.0.1:8005/healthz
 - 动态靶机所在主机需可访问 Docker（`/var/run/docker.sock` 或远程 Docker API）
 - 持久化 `data/`、`static/uploads/` 等目录
 
-更多细节（架构、虚拟化、运维）见 **http://ctf-docs.lostpeach.cn/** 。
+更多细节（架构、虚拟化、运维）见 **https://hexbay.github.io/CloudCTF/** 。
 
 ## 文档
 
-完整文档：**http://ctf-docs.lostpeach.cn/**
+完整文档：**https://hexbay.github.io/CloudCTF/**
 
 ## 项目结构
 

@@ -1,4 +1,4 @@
-# Ocean CTF 文档构建脚本 (PowerShell)
+# CloudCTF 文档构建脚本 (PowerShell)
 
 param(
     [Parameter(Position=0)]
@@ -9,7 +9,7 @@ param(
 )
 
 function Show-Help {
-    Write-Host "Ocean CTF 文档构建工具" -ForegroundColor Cyan
+    Write-Host "CloudCTF 文档构建工具" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "可用命令:" -ForegroundColor Yellow
     Write-Host "  .\build.ps1 install    - 安装依赖"

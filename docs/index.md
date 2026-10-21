@@ -14,7 +14,7 @@ hero:
       link: http://cloud-ctf.lostpeach.cn/
     - theme: alt
       text: 在线文档
-      link: http://ctf-docs.lostpeach.cn/
+      link: https://hexbay.github.io/CloudCTF/
     - theme: alt
       text: 查看 GitHub
       link: https://github.com/hexbay/CloudCTF

@@ -1,7 +1,7 @@
 {
-  "name": "ocean-ctf-docs",
+  "name": "cloudctf-docs",
   "version": "1.0.0",
-  "description": "Ocean CTF 平台文档",
+  "description": "CloudCTF 平台文档",
   "packageManager": "pnpm@8.15.0",
   "scripts": {
     "docs:dev": "vitepress dev",
@@ -14,7 +14,7 @@
     "ctf",
     "documentation"
   ],
-  "author": "Ocean CTF Team",
+  "author": "CloudCTF contributors",
   "license": "MIT",
   "devDependencies": {
     "mermaid": "^10.9.3",

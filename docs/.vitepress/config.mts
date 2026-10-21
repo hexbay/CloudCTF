@@ -1,9 +1,10 @@
 import { defineConfig } from "vitepress";
 
 export default defineConfig({
-  title: "Cloud CTF",
+  title: "CloudCTF",
   description: "CTF 竞赛平台 - 私有化部署文档",
   lang: "zh-CN",
+  base: "/CloudCTF/",
 
   head: [["link", { rel: "icon", href: "/logo.svg", type: "image/svg+xml" }]],
 
@@ -66,12 +67,12 @@ export default defineConfig({
     },
 
     socialLinks: [
-      { icon: "github", link: "https://github.com/hexbay/cloudctf" },
+      { icon: "github", link: "https://github.com/hexbay/CloudCTF" },
     ],
 
     footer: {
       message: "Released under the MIT License.",
-      copyright: "Copyright © 2026-present Ocean CTF Team",
+      copyright: "Copyright © 2026-present CloudCTF contributors",
     },
 
     search: {
@@ -79,7 +80,7 @@ export default defineConfig({
     },
 
     editLink: {
-      pattern: "https://github.com/hexbay/cloudctf/edit/main/docs/:path",
+      pattern: "https://github.com/hexbay/CloudCTF/edit/main/docs/:path",
       text: "在 GitHub 上编辑此页",
     },
 

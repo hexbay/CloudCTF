@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Ocean CTF 文档部署脚本
+ * CloudCTF 文档部署脚本
  * 
  * 使用方法:
  * 1. 设置环境变量: 
@@ -78,7 +78,7 @@ function deployToServer() {
     execSync(rsyncCmd, { stdio: 'inherit' });
     
     success('部署完成!');
-    info(`访问地址: http://ctf-docs.lostpeach.cn`);
+    info(`访问地址: https://hexbay.github.io/CloudCTF/`);
   } catch (err) {
     error('部署失败: ' + err.message);
   }
@@ -99,7 +99,7 @@ function main() {
   const args = process.argv.slice(2);
   const command = args[0] || 'deploy';
 
-  log('\n🚀 Ocean CTF 文档部署工具\n', 'cyan');
+  log('\n🚀 CloudCTF 文档部署工具\n', 'cyan');
 
   switch (command) {
     case 'deploy':

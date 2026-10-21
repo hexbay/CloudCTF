@@ -45,4 +45,3 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: docs/.vitepress/dist
-          cname: docs.ocean-ctf.com  # 可选：自定义域名

@@ -17,4 +17,4 @@ deploy: build
 	@echo "路径: $(TX_PATH)"
 	scp -r .vitepress/dist/* $(TX_SERVER):$(TX_PATH)/
 	@echo "部署完成!"
-	@echo "访问地址: http://ctf-docs.lostpeach.cn"
+	@echo "访问地址: https://hexbay.github.io/CloudCTF/"

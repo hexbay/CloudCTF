@@ -1,36 +1,79 @@
 # Docker 部署
 
-当前文档体系已不再将 Docker 作为 **平台主服务** 的推荐生产部署方式。
+CloudCTF 官方镜像发布在 Docker Hub：
 
-也就是说：
+- [`peach0214/cloud_ctf`](https://hub.docker.com/r/peach0214/cloud_ctf)
+- `latest` 指向最近一次构建
+- 版本 Tag 与 GitHub Release 一致，例如 `v1.0.0`
 
-- 当前没有官方维护的“下载 `docker-compose.yml` 后直接部署整个平台”的主线文档
-- 当前没有把 Docker Compose 作为平台主服务默认发布形态
-- 如果你在别处看到 Compose，通常是在说题目模板、多服务靶场、漏洞环境，而不是主服务本身
+## 拉取镜像
 
-目前主推方案是：
+```bash
+docker pull peach0214/cloud_ctf:latest
+```
 
-- `systemd + 单二进制`
-- 前端资源内嵌进服务二进制
-- 数据库按环境选择 SQLite 或 MySQL
+生产环境建议固定版本，确认新版本后再主动升级：
 
-## 为什么这个页面还保留？
+```bash
+docker pull peach0214/cloud_ctf:v1.0.0
+```
 
-保留本页仅用于兼容旧链接，避免历史文档或外部引用直接失效。
+## 启动服务
 
-## 什么时候还会用到 Docker？
+```bash
+docker run -d \
+  --name cloudctf \
+  --restart unless-stopped \
+  -p 8005:8005 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD/data:/app/data" \
+  -v "$PWD/static:/app/static" \
+  -e APP_ENV=production \
+  -e JWT_SECRET='replace-with-a-long-random-string' \
+  -e FIRST_SUPERUSER_PASSWORD='replace-with-a-strong-12+-character-password' \
+  -e ALLOWED_ORIGINS='http://your-server-ip:8005' \
+  peach0214/cloud_ctf:latest
+```
 
-Docker 仍然可能出现在这些场景：
+启动后访问：
 
-1. 动态靶机运行时
-2. 漏洞环境模板启动
-3. 某些实验 / 测试环境
-4. 你们内部自定义的容器化封装方案
+- 选手端：`http://<服务器 IP>:8005/`
+- 管理后台：`http://<服务器 IP>:8005/admin`
+- 健康检查：`http://<服务器 IP>:8005/healthz`
 
-但这些都不等于“平台主服务必须用 Docker 部署”。
+## 升级镜像
 
-## 当前应该看哪里？
+容器内的在线更新不适合镜像部署。请拉取新镜像并重建容器：
 
-- [快速开始](/guide/quick-start)
-- [技术架构](/guide/architecture)
-- [常见问题](/guide/faq)
+```bash
+docker pull peach0214/cloud_ctf:latest
+docker stop cloudctf
+docker rm cloudctf
+# 使用上一节的 docker run 命令重新创建容器
+```
+
+`data/` 和 `static/` 已挂载到宿主机时，重建容器不会删除其中的数据。升级前仍建议在管理后台创建备份。
+
+## CI 镜像发布配置
+
+仓库的 `Build and Release` 工作流会将镜像发布到 `peach0214/cloud_ctf`。Docker Hub 用户名和镜像名已经写入工作流，只需在 GitHub 仓库中添加一个 Secret：
+
+| 类型 | 名称 | 值 |
+| --- | --- | --- |
+| Repository secret | `DOCKERHUB_TOKEN` | Docker Hub 中具有 Read & Write 权限的 Personal Access Token |
+
+配置位置：`Settings → Secrets and variables → Actions → Secrets → New repository secret`。
+
+也可以使用 GitHub CLI 设置，命令会提示你粘贴 Token：
+
+```bash
+gh secret set DOCKERHUB_TOKEN --repo hexbay/CloudCTF
+```
+
+配置完成并推送工作流改动后，可在 GitHub Actions 中手动运行 `Build and Release` 发布 `latest`；推送 `v*` Tag 时会同时发布对应版本 Tag 和 `latest`。
+
+## 安全说明
+
+挂载 `/var/run/docker.sock` 后，CloudCTF 可以管理宿主机上的 Docker 资源，这通常等同于较高的宿主机权限。生产环境应隔离靶场节点，并限制容器挂载、出口网络和镜像来源。如果不使用动态靶机，可以不挂载 Docker Socket。
+
+单二进制与 systemd 部署方式参见 [生产部署](/guide/production-deploy)。

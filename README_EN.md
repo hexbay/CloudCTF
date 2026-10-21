@@ -94,7 +94,7 @@ Once started, open:
 ### Run with Docker
 
 ```bash
-docker build -t cloudctf:local -f backend/Dockerfile .
+docker pull peach0214/cloud_ctf:latest
 
 docker run -d --name cloudctf --restart unless-stopped \
   -p 8005:8005 \
@@ -105,7 +105,7 @@ docker run -d --name cloudctf --restart unless-stopped \
   -e JWT_SECRET='replace-with-a-strong-random-secret' \
   -e FIRST_SUPERUSER_PASSWORD='replace-with-a-strong-12+-character-password' \
   -e ALLOWED_ORIGINS='http://server-ip:8005' \
-  cloudctf:local
+  peach0214/cloud_ctf:latest
 ```
 
 > Access to the Docker socket is equivalent to elevated host privileges. Isolate range nodes in production and restrict mounts, networking, and image sources.

@@ -94,7 +94,7 @@ chmod +x cloudctf-linux-amd64
 ### 使用 Docker
 
 ```bash
-docker build -t cloudctf:local -f backend/Dockerfile .
+docker pull peach0214/cloud_ctf:latest
 
 docker run -d --name cloudctf --restart unless-stopped \
   -p 8005:8005 \
@@ -105,7 +105,7 @@ docker run -d --name cloudctf --restart unless-stopped \
   -e JWT_SECRET='替换为强随机字符串' \
   -e FIRST_SUPERUSER_PASSWORD='替换为至少12位的强密码' \
   -e ALLOWED_ORIGINS='http://服务器IP:8005' \
-  cloudctf:local
+  peach0214/cloud_ctf:latest
 ```
 
 > Docker Socket 等同于较高的宿主机权限。生产环境应隔离靶场节点，并限制挂载、网络和镜像来源。

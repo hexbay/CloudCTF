@@ -44,7 +44,7 @@ docs/
 │   ├── quick-start.md     # 快速开始
 │   └── faq.md            # 常见问题
 ├── deployment/            # 部署说明
-│   └── docker.md         # 历史 Docker 页面（兼容旧链接）
+│   └── docker.md         # Docker 镜像部署
 ├── api/                   # API 文档
 │   └── overview.md       # API 概览
 └── index.md              # 首页

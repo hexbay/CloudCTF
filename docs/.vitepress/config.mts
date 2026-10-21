@@ -29,6 +29,7 @@ export default defineConfig({
             { text: "功能特性", link: "/guide/features" },
             { text: "快速开始", link: "/guide/quick-start" },
             { text: "生产部署", link: "/guide/production-deploy" },
+            { text: "Docker 部署", link: "/deployment/docker" },
           ],
         },
 

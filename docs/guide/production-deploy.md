@@ -217,7 +217,7 @@ ALLOWED_ORIGINS=http://ctf.example.com
 UPDATE_ENABLED=false
 ```
 
-自定义镜像或容器化部署更适合通过镜像发布流程升级，而不是在容器内替换二进制。
+容器化部署请使用官方镜像 `peach0214/cloud_ctf`，并通过拉取新镜像和重建容器升级，不要在容器内替换二进制。完整示例参见 [Docker 部署](/deployment/docker)。
 
 查看状态：
 

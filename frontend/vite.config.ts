@@ -4,6 +4,25 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('echarts') || id.includes('zrender')) return 'vendor-charts';
+          if (id.includes('antd') || id.includes('@ant-design')) return 'vendor-antd';
+          if (id.includes('react-markdown') || id.includes('remark-') || id.includes('rehype-') || id.includes('micromark')) {
+            return 'vendor-markdown';
+          }
+          if (id.includes('xterm')) return 'vendor-terminal';
+          if (id.includes('react-dom') || id.includes('react-router') || /node_modules[\\/]react[\\/]/.test(id)) {
+            return 'vendor-react';
+          }
+          return undefined;
+        }
+      }
+    }
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

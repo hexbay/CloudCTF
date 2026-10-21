@@ -63,9 +63,16 @@ type rateLimitEntry struct {
 	reset time.Time
 }
 
+const sensitiveRateLimitMaxEntries = 10_000
+
 func sensitiveRateLimiter(next http.Handler) http.Handler {
+	return newSensitiveRateLimiter(next, sensitiveRateLimitMaxEntries)
+}
+
+func newSensitiveRateLimiter(next http.Handler, maxEntries int) http.Handler {
 	var mu sync.Mutex
 	entries := map[string]rateLimitEntry{}
+	lastCleanup := time.Now()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		limit := sensitiveRouteLimit(r)
 		if limit == 0 {
@@ -75,7 +82,17 @@ func sensitiveRateLimiter(next http.Handler) http.Handler {
 		now := time.Now()
 		key := clientIP(r) + "|" + r.Method + "|" + r.URL.Path
 		mu.Lock()
-		entry := entries[key]
+		if now.Sub(lastCleanup) >= time.Minute {
+			pruneExpiredRateLimitEntries(entries, now)
+			lastCleanup = now
+		}
+		entry, exists := entries[key]
+		if !exists && len(entries) >= maxEntries {
+			mu.Unlock()
+			w.Header().Set("Retry-After", "60")
+			response.JSON(w, http.StatusTooManyRequests, map[string]any{"detail": "too many requests"})
+			return
+		}
 		if entry.reset.IsZero() || now.After(entry.reset) {
 			entry = rateLimitEntry{reset: now.Add(time.Minute)}
 		}
@@ -89,6 +106,14 @@ func sensitiveRateLimiter(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func pruneExpiredRateLimitEntries(entries map[string]rateLimitEntry, now time.Time) {
+	for key, entry := range entries {
+		if !entry.reset.After(now) {
+			delete(entries, key)
+		}
+	}
 }
 
 func sensitiveRouteLimit(r *http.Request) int {

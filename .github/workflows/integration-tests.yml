@@ -1,0 +1,126 @@
+name: Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-http-e2e:
+    # 这条任务只验证仓库默认种子数据下的 CI 链路，
+    # 并假设 tests/integration 依赖的内置仓库和模板已经可用。
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      APP_ENV: test
+      HOST: 127.0.0.1
+      PORT: 8005
+      JWT_SECRET: ci-secret
+      DATABASE_URI: sqlite://${{ github.workspace }}/backend/data/ci-e2e.db
+      STATIC_DIR: ${{ github.workspace }}/backend/static
+      UPLOAD_DIR: ${{ github.workspace }}/backend/static/uploads
+      BACKUP_DIR: ${{ github.workspace }}/backend/data/backups
+      FRONTEND_DIR: ${{ github.workspace }}/frontend/dist
+      CLOUDFLAG_BASE_URL: http://127.0.0.1:8005
+      CLOUDFLAG_ADMIN_USERNAME: admin
+      CLOUDFLAG_ADMIN_PASSWORD: admin123456
+      CLOUDFLAG_PLAYER_USERNAME: player1
+      CLOUDFLAG_PLAYER_PASSWORD: password123
+      CLOUDFLAG_RESOURCE_SYNC_TIMEOUT: 300
+      CLOUDFLAG_TEMPLATE_BUILD_TIMEOUT: 600
+      CLOUDFLAG_RUNTIME_START_TIMEOUT: 240
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: backend/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install Python integration test dependencies
+        run: python -m pip install --upgrade pip && pip install -r tests/integration/requirements.txt
+
+      - name: Prepare runtime directories
+        run: |
+          mkdir -p backend/data
+          mkdir -p backend/data/backups
+          mkdir -p backend/static/uploads
+
+      - name: Start backend server
+        working-directory: backend
+        run: |
+          nohup go run ./cmd/server > ../backend-server.log 2>&1 &
+          echo $! > ../backend-server.pid
+
+      - name: Wait for health endpoint
+        run: |
+          python - <<'PY'
+          import sys
+          import time
+          import urllib.request
+
+          url = "http://127.0.0.1:8005/healthz"
+          deadline = time.time() + 120
+          last_error = None
+          while time.time() < deadline:
+              try:
+                  with urllib.request.urlopen(url, timeout=5) as resp:
+                      if resp.status == 200:
+                          sys.exit(0)
+              except Exception as exc:
+                  last_error = exc
+              time.sleep(2)
+          raise SystemExit(f"backend health check failed: {last_error}")
+          PY
+
+      - name: Verify Docker availability
+        run: docker version
+
+      - name: Run Python HTTP integration tests
+        run: pytest tests/integration --junitxml=test-results-integration.xml
+
+      - name: Upload integration test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-artifacts
+          path: |
+            backend-server.log
+            test-results-integration.xml
+            backend/data/backups
+          if-no-files-found: warn
+
+      - name: Stop backend server
+        if: always()
+        run: |
+          if [ -f backend-server.pid ]; then
+            kill "$(cat backend-server.pid)" || true
+          fi

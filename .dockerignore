@@ -1,0 +1,35 @@
+# Limit the Docker build context (context is the repo root for the embed build).
+.git
+.github
+.idea
+.vscode
+
+# Legacy / unused frontends and the old Python backend
+backend_back
+front-admin
+front-user
+
+# Node / build artifacts (frontend is rebuilt inside the image)
+**/node_modules
+**/dist
+**/.vite
+**/.umi
+**/.umi-production
+**/*.tsbuildinfo
+
+# Go artifacts
+**/*.exe
+**/*.test
+backend/data
+backend/logs
+backend/static/uploads
+backend/venv
+backend/__pycache__
+
+# Docs and misc
+docs
+deploy
+*.md
+*.log
+.env
+**/.env

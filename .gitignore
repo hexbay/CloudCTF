@@ -1,0 +1,87 @@
+# ===================================
+# IDE & Editor
+# ===================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*~
+*.bak
+
+# ===================================
+# Environment
+# ===================================
+.env
+.env.local
+.env.*.local
+
+# ===================================
+# Logs
+# ===================================
+logs/
+*.log
+.claude
+# ===================================
+# Python (backend_back)
+# ===================================
+__pycache__/
+*.pyc
+*.pyo
+*.py~
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+celerybeat-schedule
+*.isorted
+
+# ===================================
+# Node (front-admin, front-user, frontend, docs)
+# ===================================
+node_modules/
+.npm/
+dist/
+.umi/
+.umi-production/
+.umi-test/
+.vite/
+*.tsbuildinfo
+**/.vitepress/cache/
+**/.vitepress/dist/
+
+# ===================================
+# Go (backend)
+# ===================================
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# ===================================
+# Runtime data
+# ===================================
+data/
+backend/data/
+backend/logs/
+backend/static/uploads/
+backend/static/template-files/
+
+# ===================================
+# OS
+# ===================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===================================
+# Misc
+# ===================================
+*.tmp
+*.temp
+.temp/

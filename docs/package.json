@@ -1,0 +1,24 @@
+{
+  "name": "ocean-ctf-docs",
+  "version": "1.0.0",
+  "description": "Ocean CTF 平台文档",
+  "packageManager": "pnpm@8.15.0",
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview",
+    "deploy": "pnpm docs:build && node deploy.js",
+    "clean": "rimraf .vitepress/dist .vitepress/cache"
+  },
+  "keywords": [
+    "ctf",
+    "documentation"
+  ],
+  "author": "Ocean CTF Team",
+  "license": "MIT",
+  "devDependencies": {
+    "mermaid": "^10.9.3",
+    "rimraf": "^5.0.5",
+    "vitepress": "^1.0.0"
+  }
+}

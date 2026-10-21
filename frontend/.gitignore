@@ -1,0 +1,2 @@
+# project-specific (common patterns covered by root .gitignore)
+node_modules/.tmp

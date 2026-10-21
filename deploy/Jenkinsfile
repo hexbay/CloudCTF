@@ -1,0 +1,59 @@
+pipeline {
+  agent any
+
+  environment {
+    IMAGE_NAME = 'cloudctf'
+    IMAGE_TAG = "${env.BUILD_NUMBER ?: 'local'}"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Backend Tests') {
+      steps {
+        dir('backend') {
+          sh 'go test ./...'
+        }
+      }
+    }
+
+    stage('Frontend Typecheck') {
+      steps {
+        dir('frontend') {
+          sh 'npm ci'
+          sh 'npm run typecheck'
+        }
+      }
+    }
+
+    stage('Frontend Build') {
+      steps {
+        dir('frontend') {
+          sh 'npm run build'
+        }
+      }
+    }
+
+    stage('Build Embedded Binaries') {
+      steps {
+        sh '''
+          rm -rf backend/internal/web/dist dist
+          mkdir -p dist
+          cp -R frontend/dist backend/internal/web/dist
+          cd backend
+          go build -tags embed -o ../dist/cloudctf-api ./cmd/server
+        '''
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        sh 'docker build -f backend/Dockerfile -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+      }
+    }
+  }
+}

@@ -3,7 +3,6 @@ package bootstrap
 import (
 	"fmt"
 	"log/slog"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,13 +26,12 @@ func dialectorFromURI(databaseURI string) (gorm.Dialector, error) {
 	if strings.TrimSpace(databaseURI) == "" {
 		databaseURI = "sqlite://data/cloudctf.db"
 	}
-	parsed, err := url.Parse(databaseURI)
-	if err != nil {
-		return nil, err
+	scheme, dsn, ok := strings.Cut(databaseURI, "://")
+	if !ok {
+		return nil, fmt.Errorf("invalid database uri %q, expected sqlite:// or mysql://", databaseURI)
 	}
-	switch strings.ToLower(parsed.Scheme) {
+	switch strings.ToLower(scheme) {
 	case "sqlite", "sqlite3":
-		dsn := strings.TrimPrefix(databaseURI, parsed.Scheme+"://")
 		if dsn == "" {
 			dsn = "data/cloudctf.db"
 		}
@@ -44,13 +42,12 @@ func dialectorFromURI(databaseURI string) (gorm.Dialector, error) {
 		}
 		return sqlite.Open(dsn), nil
 	case "mysql":
-		dsn := strings.TrimPrefix(databaseURI, "mysql://")
 		if !strings.Contains(dsn, "?") {
 			dsn += "?charset=utf8mb4&parseTime=True&loc=Local"
 		}
 		return mysql.Open(dsn), nil
 	default:
-		return nil, fmt.Errorf("unsupported database uri scheme %q, expected sqlite:// or mysql://", parsed.Scheme)
+		return nil, fmt.Errorf("unsupported database uri scheme %q, expected sqlite:// or mysql://", scheme)
 	}
 }
 

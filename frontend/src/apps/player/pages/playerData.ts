@@ -10,7 +10,7 @@ import type {
 export const fallbackCompetitions: PlayerCompetition[] = [
   {
     id: 1,
-    name: "Ocean CTF 春季挑战赛",
+    name: "CloudCTF 春季挑战赛",
     type: "ctf",
     status: "ongoing",
     start_time: "2026-05-20T09:00:00+08:00",
@@ -136,7 +136,7 @@ export const fallbackTeam: PlayerTeam = {
     { id: 2, username: "webster", email: "web@example.com" },
     { id: 3, username: "cryptoer", email: "crypto@example.com" },
   ],
-  competitions: [{ id: 1, name: "Ocean CTF 春季挑战赛", status: "ongoing" }],
+  competitions: [{ id: 1, name: "CloudCTF 春季挑战赛", status: "ongoing" }],
 };
 
 export const fallbackVulnLabs: VulnLab[] = [

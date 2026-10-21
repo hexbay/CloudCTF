@@ -46,6 +46,10 @@ LOG_FILE=./cloudctf.log
 # 有域名时推荐填写 https://ctf.example.com
 ALLOWED_ORIGINS=http://your-server-ip:8005
 
+# 在线更新：从 v* Tag 对应的 GitHub Release 获取新版本
+UPDATE_ENABLED=true
+UPDATE_REPOSITORY=hexbay/CloudCTF
+
 # 数据库：默认 SQLite
 DATABASE_URI=sqlite://./cloudctf.db
 
@@ -192,6 +196,29 @@ ALLOWED_ORIGINS=http://ctf.example.com
 
 ## 日常运维
 
+### 在线更新
+
+超级管理员进入管理端时，系统会检查一次新版本；发现新版本后只显示通知，不会自动安装。管理员可以通过通知进入“系统设置 → 系统信息”，查看发布说明并手动确认更新，也可以随时点击“检查更新”。
+
+在线更新流程如下：
+
+1. 读取 `UPDATE_REPOSITORY` 的最新 GitHub Release（由 `v*` Tag 发布）
+2. 按当前架构下载 `cloudctf-linux-amd64` 或 `cloudctf-linux-arm64`
+3. 下载并验证同名 `.sha256` 文件
+4. 将当前二进制保留为 `.previous`，原子替换程序并自动重启
+
+只有超级管理员可以执行更新。更新前仍建议先在“备份管理”中创建数据备份。公共仓库无需 GitHub Token；如果遇到 API 限额，可以在环境文件中设置 `UPDATE_GITHUB_TOKEN`，然后重启服务。
+
+运行服务的用户必须对二进制所在目录具有写权限，否则检查功能仍可使用，但安装会被拒绝。
+
+如需关闭入口：
+
+```bash
+UPDATE_ENABLED=false
+```
+
+自定义镜像或容器化部署更适合通过镜像发布流程升级，而不是在容器内替换二进制。
+
 查看状态：
 
 ```bash
@@ -209,6 +236,17 @@ journalctl -u cloudctf -f
 ```bash
 sudo systemctl restart cloudctf
 ```
+
+重置管理员密码：
+
+```bash
+cd /srv/cloudctf
+sudo systemctl stop cloudctf
+./cloudctf-linux-amd64 reset-admin-password --username admin
+sudo systemctl start cloudctf
+```
+
+密码会以隐藏方式交互输入。命令使用当前环境或 `CONFIG_FILE` 指定配置中的 `DATABASE_URI`，同时支持 SQLite 和 MySQL。修改 `FIRST_SUPERUSER_PASSWORD` 只影响首次创建账号，不能重置已有管理员。
 
 ## 常见问题
 

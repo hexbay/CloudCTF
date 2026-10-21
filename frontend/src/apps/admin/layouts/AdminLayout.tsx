@@ -2,6 +2,7 @@ import {
   AuditOutlined,
   BellOutlined,
   CloudOutlined,
+  CloudDownloadOutlined,
   CompassOutlined,
   DashboardOutlined,
   FlagOutlined,
@@ -31,11 +32,13 @@ import {
   Space,
   Tag,
   message,
+  notification,
 } from "antd";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import type { MenuItem } from "@shared/types/menu";
 import { adminApi } from "@shared/api/admin";
+import { getErrorMessage } from "@shared/api/http";
 import { publicApi } from "@shared/api/public";
 import { clearAdminTokens } from "@shared/auth/token";
 import { AdminBreadcrumb } from "../components/AdminBreadcrumb";
@@ -50,6 +53,15 @@ type AdminMe = {
   role?: string;
   must_change_password?: boolean;
   permissions?: string[];
+  is_superuser?: boolean;
+};
+
+type UpdateNotice = {
+  current_version: string;
+  latest_version?: string;
+  update_available: boolean;
+  supported: boolean;
+  release_name?: string;
 };
 
 const menuItems: MenuItem[] = [
@@ -121,6 +133,7 @@ export function AdminLayout() {
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [systemVersion, setSystemVersion] = useState("dev");
+  const [notificationApi, notificationContextHolder] = notification.useNotification();
   const [passwordForm] = Form.useForm<{ current_password: string; new_password: string; confirm_password: string }>();
   const visibleMenuItems = useMemo(
     () => filterMenuItems(menuItems, currentUser?.permissions),
@@ -145,6 +158,9 @@ export function AdminLayout() {
         setCurrentUser(admin);
         if (admin.must_change_password) {
           setPasswordModalOpen(true);
+        }
+        if (admin.is_superuser) {
+          void checkForAvailableUpdate();
         }
       })
       .catch(() => {
@@ -197,6 +213,46 @@ export function AdminLayout() {
     }
   }
 
+  async function checkForAvailableUpdate() {
+    try {
+      const update = await adminApi.get<UpdateNotice>("/api-admin/settings/update/check");
+      if (!update.supported || !update.update_available || !update.latest_version) {
+        return;
+      }
+      const noticeKey = `cloudctf-update-notified:${update.latest_version}`;
+      try {
+        if (sessionStorage.getItem(noticeKey)) {
+          return;
+        }
+        sessionStorage.setItem(noticeKey, "1");
+      } catch {
+        // Browsers can disable session storage; the notice should still work.
+      }
+      notificationApi.info({
+        key: "cloudctf-system-update",
+        icon: <CloudDownloadOutlined style={{ color: "#1677ff" }} />,
+        message: `发现新版本 ${update.latest_version}`,
+        description: `${update.release_name || "CloudCTF 新版本"} 已发布。系统不会自动安装，请由超级管理员确认后手动更新。`,
+        duration: 0,
+        btn: (
+          <Button
+            type="primary"
+            size="small"
+            onClick={() => {
+              notificationApi.destroy("cloudctf-system-update");
+              navigate("/admin/settings/info");
+            }}
+          >
+            查看更新
+          </Button>
+        ),
+      });
+    } catch (error) {
+      // Mark the request error as handled. Update checks must not interrupt login.
+      getErrorMessage(error);
+    }
+  }
+
   async function handleChangePassword() {
     try {
       const values = await passwordForm.validateFields();
@@ -220,6 +276,7 @@ export function AdminLayout() {
 
   return (
     <Layout className="admin-shell">
+      {notificationContextHolder}
       <Sider
         width={216}
         collapsedWidth={72}

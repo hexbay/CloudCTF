@@ -106,6 +106,7 @@ func adminUserResponse(user userModel) adminUserMe {
 		Email:              user.Email,
 		Nickname:           user.FullName,
 		Role:               user.Role.Name,
+		IsSuperuser:        user.IsSuperuser,
 		MustChangePassword: user.MustChangePassword,
 		Permissions:        user.Role.PermissionList(),
 	}
@@ -117,6 +118,7 @@ type adminUserMe struct {
 	Email              string   `json:"email"`
 	Nickname           string   `json:"nickname"`
 	Role               string   `json:"role"`
+	IsSuperuser        bool     `json:"is_superuser"`
 	MustChangePassword bool     `json:"must_change_password"`
 	Permissions        []string `json:"permissions"`
 }

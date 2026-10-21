@@ -17,6 +17,7 @@ import {
   UploadOutlined,
 } from "@ant-design/icons";
 import {
+  Alert,
   Button,
   Card,
   Form,
@@ -68,6 +69,25 @@ type SystemInfo = {
   last_updated?: string;
 };
 
+type UpdateInfo = {
+  current_version: string;
+  latest_version?: string;
+  update_available: boolean;
+  supported: boolean;
+  reason?: string;
+  release_name?: string;
+  release_notes?: string;
+  release_url?: string;
+  published_at?: string;
+  asset_name?: string;
+  asset_size?: number;
+  repository: string;
+};
+
+type AdminIdentity = {
+  is_superuser?: boolean;
+};
+
 type BackupRow = {
   id: number | string;
   name?: string;
@@ -94,6 +114,7 @@ export function AdminSettingsPage() {
   const [modal, contextHolder] = Modal.useModal();
   const [form] = Form.useForm<SettingsForm>();
   const loadedRef = useRef(false);
+  const updateCheckStartedRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
@@ -105,6 +126,10 @@ export function AdminSettingsPage() {
   const [demoDataLoading, setDemoDataLoading] = useState(false);
   const [demoScale, setDemoScale] = useState<DemoScale>("10-100");
   const [systemVersion, setSystemVersion] = useState("dev");
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateChecking, setUpdateChecking] = useState(false);
+  const [updateApplying, setUpdateApplying] = useState(false);
+  const [canInstallUpdates, setCanInstallUpdates] = useState(false);
 
   const activeTabKey = settingsTabKeys.includes((tabKey || "") as (typeof settingsTabKeys)[number])
     ? (tabKey as (typeof settingsTabKeys)[number])
@@ -114,6 +139,7 @@ export function AdminSettingsPage() {
     void load();
     void loadBackups();
     void loadLogs();
+    void loadAdminIdentity();
   }, []);
 
   useEffect(() => {
@@ -121,6 +147,10 @@ export function AdminSettingsPage() {
       return;
     }
     void refreshSystemInfo();
+    if (!updateCheckStartedRef.current) {
+      updateCheckStartedRef.current = true;
+      void checkForUpdates(false);
+    }
     const timer = window.setInterval(() => {
       void refreshSystemInfo();
     }, 15000);
@@ -180,6 +210,65 @@ export function AdminSettingsPage() {
 
   async function refreshSystemInfo() {
     await Promise.allSettled([loadSystemInfo(), loadVersion()]);
+  }
+
+  async function checkForUpdates(announce = true) {
+    setUpdateChecking(true);
+    try {
+      const result = await adminApi.get<UpdateInfo>("/api-admin/settings/update/check");
+      setUpdateInfo(result);
+      if (!announce) {
+        return;
+      }
+      if (!result.supported) {
+        message.warning(result.reason || "当前环境不支持在线更新");
+      } else if (result.update_available) {
+        message.success(`发现新版本 ${result.latest_version}`);
+      } else {
+        message.success("当前已是最新版本");
+      }
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "检查更新失败");
+    } finally {
+      setUpdateChecking(false);
+    }
+  }
+
+  async function loadAdminIdentity() {
+    try {
+      const identity = await adminApi.me() as AdminIdentity;
+      setCanInstallUpdates(Boolean(identity.is_superuser));
+    } catch {
+      setCanInstallUpdates(false);
+    }
+  }
+
+  function applyUpdate() {
+    if (!updateInfo?.latest_version) {
+      return;
+    }
+    const targetVersion = updateInfo.latest_version;
+    modal.confirm({
+      title: `更新到 ${targetVersion}`,
+      content: "系统会下载并校验 GitHub Release，替换程序后自动重启。更新前建议先创建数据备份，重启期间服务会短暂不可用。",
+      okText: "确认更新",
+      cancelText: "取消",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setUpdateApplying(true);
+        try {
+          await adminApi.create("/api-admin/settings/update/apply", { tag: targetVersion });
+          message.loading({ content: `已安装 ${targetVersion}，正在等待服务重启…`, key: "system-update", duration: 0 });
+          await waitForUpdatedService(targetVersion);
+          message.success({ content: `已更新到 ${targetVersion}`, key: "system-update", duration: 2 });
+          window.location.reload();
+        } catch (error) {
+          message.destroy("system-update");
+          message.error(error instanceof Error ? error.message : "在线更新失败");
+          setUpdateApplying(false);
+        }
+      },
+    });
   }
 
   async function loadBackups() {
@@ -499,6 +588,9 @@ export function AdminSettingsPage() {
                       <Tag className="settings-version-pill" bordered={false}>
                         版本 {systemVersion}
                       </Tag>
+                      <Button icon={<CloudDownloadOutlined />} loading={updateChecking} disabled={updateApplying} onClick={() => void checkForUpdates()}>
+                        检查更新
+                      </Button>
                     </Space>
                   </div>
                   <div className="settings-info-hero-meta">
@@ -519,6 +611,38 @@ export function AdminSettingsPage() {
                     <InfoItem key={fact.label} label={fact.label} value={fact.value} />
                   ))}
                 </div>
+                {updateInfo && (
+                  <Card
+                    size="small"
+                    title={`在线更新 · ${updateInfo.repository}`}
+                    style={{ marginTop: 20 }}
+                    extra={updateInfo.release_url ? <Typography.Link href={updateInfo.release_url} target="_blank" rel="noreferrer">查看 GitHub Release</Typography.Link> : null}
+                  >
+                    {!updateInfo.supported ? (
+                      <Alert type="warning" showIcon message="当前环境不支持在线更新" description={updateInfo.reason} />
+                    ) : updateInfo.update_available ? (
+                      <Space direction="vertical" size={12} style={{ width: "100%" }}>
+                        <Alert
+                          type="info"
+                          showIcon
+                          message={`发现新版本 ${updateInfo.latest_version}`}
+                          description={`${updateInfo.asset_name || "发布文件"} · ${formatBytes(updateInfo.asset_size)} · 发布于 ${formatTime(updateInfo.published_at) || "-"}`}
+                        />
+                        {updateInfo.release_notes && (
+                          <Typography.Paragraph ellipsis={{ rows: 6, expandable: true, symbol: "展开发布说明" }} style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>
+                            {updateInfo.release_notes}
+                          </Typography.Paragraph>
+                        )}
+                        <Button type="primary" danger icon={<CloudDownloadOutlined />} loading={updateApplying} disabled={!canInstallUpdates} onClick={applyUpdate}>
+                          下载并更新到 {updateInfo.latest_version}
+                        </Button>
+                        {!canInstallUpdates && <Typography.Text type="secondary">只有超级管理员可以执行系统更新。</Typography.Text>}
+                      </Space>
+                    ) : (
+                      <Alert type="success" showIcon message="当前已是最新版本" description={`当前版本：${updateInfo.current_version}`} />
+                    )}
+                  </Card>
+                )}
               </Card>
             ),
           },
@@ -713,4 +837,37 @@ function metricStrokeColor(tone: "cyan" | "green" | "amber") {
     return "#0f766e";
   }
   return "#d97706";
+}
+
+function formatBytes(value?: number) {
+  if (!value || value < 1) {
+    return "大小未知";
+  }
+  const units = ["B", "KB", "MB", "GB"];
+  let size = value;
+  let unit = 0;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit += 1;
+  }
+  return `${size >= 10 || unit === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[unit]}`;
+}
+
+async function waitForUpdatedService(version: string) {
+  await new Promise((resolve) => window.setTimeout(resolve, 1500));
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    try {
+      const response = await fetch(`/api/public/version?updated=${Date.now()}`, { cache: "no-store" });
+      if (response.ok) {
+        const payload = (await response.json()) as { version?: string };
+        if (payload.version?.trim() === version) {
+          return;
+        }
+      }
+    } catch {
+      // A connection failure is expected while the service is restarting.
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+  }
+  throw new Error("新版本已安装，但服务未在预期时间内恢复，请检查服务日志");
 }

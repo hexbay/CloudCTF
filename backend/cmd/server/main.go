@@ -20,6 +20,14 @@ import (
 var version = "dev"
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "reset-admin-password" {
+		if err := runResetAdminPassword(os.Args[2:], os.Stdin, os.Stdout, os.Stderr); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to reset administrator password: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	cfg := config.Load()
 	if err := cfg.Validate(); err != nil {
 		fmt.Fprintf(os.Stderr, "invalid configuration: %v\n", err)
@@ -39,7 +47,19 @@ func main() {
 		logger.Error("database schema preparation failed", "uri", cfg.DatabaseURI, "error", err)
 		os.Exit(1)
 	}
-	srv := httpserver.NewServer(httpserver.Dependencies{DB: db, Config: cfg, Logger: logger, Version: version})
+	restart := make(chan struct{}, 1)
+	srv := httpserver.NewServer(httpserver.Dependencies{
+		DB:      db,
+		Config:  cfg,
+		Logger:  logger,
+		Version: version,
+		RequestRestart: func() {
+			select {
+			case restart <- struct{}{}:
+			default:
+			}
+		},
+	})
 
 	processCtx, processCancel := context.WithCancel(context.Background())
 	defer processCancel()
@@ -61,7 +81,13 @@ func main() {
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	<-stop
+	restartRequested := false
+	select {
+	case <-stop:
+	case <-restart:
+		restartRequested = true
+		logger.Info("restart requested after online update")
+	}
 
 	processCancel()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -71,4 +97,10 @@ func main() {
 		os.Exit(1)
 	}
 	logger.Info("api server stopped")
+	if restartRequested {
+		if err := restartCurrentProcess(); err != nil {
+			logger.Error("failed to restart updated service", "error", err)
+			os.Exit(1)
+		}
+	}
 }

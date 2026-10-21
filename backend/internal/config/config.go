@@ -33,6 +33,10 @@ type Config struct {
 	ContainerLabelValue    string
 	ContainerManagedKey    string
 	ContainerManagedVal    string
+	UpdateEnabled          bool
+	UpdateRepository       string
+	UpdateAPIURL           string
+	UpdateGitHubToken      string
 }
 
 func Load() Config {
@@ -59,6 +63,10 @@ func Load() Config {
 		ContainerLabelValue:    env("CONTAINER_LABEL_VALUE", "cloudctf"),
 		ContainerManagedKey:    env("CONTAINER_MANAGED_LABEL_KEY", "com.cloudctf.managed"),
 		ContainerManagedVal:    env("CONTAINER_MANAGED_LABEL_VALUE", "true"),
+		UpdateEnabled:          envBool("UPDATE_ENABLED", true),
+		UpdateRepository:       env("UPDATE_REPOSITORY", "hexbay/CloudCTF"),
+		UpdateAPIURL:           env("UPDATE_API_URL", "https://api.github.com"),
+		UpdateGitHubToken:      env("UPDATE_GITHUB_TOKEN", ""),
 	}
 }
 
@@ -210,6 +218,18 @@ func envInt(key string, fallback int) int {
 		return fallback
 	}
 	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fallback
+	}
+	return parsed
+}
+
+func envBool(key string, fallback bool) bool {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.ParseBool(value)
 	if err != nil {
 		return fallback
 	}

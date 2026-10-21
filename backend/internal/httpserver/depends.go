@@ -1,23 +1,26 @@
 package httpserver
 
 import (
-	"cloudctf/backend/internal/config"
-	"cloudctf/backend/internal/services"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
 	"time"
 
+	"cloudctf/backend/internal/config"
+	"cloudctf/backend/internal/services"
+	"cloudctf/backend/internal/updater"
+
 	"gorm.io/gorm"
 )
 
 // Dependencies is the set of external dependencies required to build a Server.
 type Dependencies struct {
-	Config  config.Config
-	Logger  *slog.Logger
-	DB      *gorm.DB
-	Version string
+	Config         config.Config
+	Logger         *slog.Logger
+	DB             *gorm.DB
+	Version        string
+	RequestRestart func()
 }
 
 // Server is the composition root for the HTTP layer. It owns configuration,
@@ -27,6 +30,8 @@ type Server struct {
 	logger          *slog.Logger
 	db              *gorm.DB
 	version         string
+	updater         *updater.Service
+	requestRestart  func()
 	services        serviceRegistry
 	templates       *templateResourceStore
 	bootedAt        time.Time
@@ -37,12 +42,20 @@ type Server struct {
 // NewServer builds a fully initialized Server from its dependencies.
 func NewServer(deps Dependencies) *Server {
 	srv := &Server{
-		config:        deps.Config,
-		logger:        deps.Logger,
-		db:            deps.DB,
-		version:       deps.Version,
-		bootedAt:      time.Now(),
-		streamTickets: make(map[string]streamTicket),
+		config:  deps.Config,
+		logger:  deps.Logger,
+		db:      deps.DB,
+		version: deps.Version,
+		updater: updater.New(updater.Config{
+			Repository: deps.Config.UpdateRepository,
+			APIBaseURL: deps.Config.UpdateAPIURL,
+			Token:      deps.Config.UpdateGitHubToken,
+			Enabled:    deps.Config.UpdateEnabled,
+			Version:    deps.Version,
+		}),
+		requestRestart: deps.RequestRestart,
+		bootedAt:       time.Now(),
+		streamTickets:  make(map[string]streamTicket),
 	}
 	srv.initServices(deps.DB)
 	return srv

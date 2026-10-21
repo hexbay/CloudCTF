@@ -15,6 +15,8 @@ The first migration step keeps the existing frontend contract:
 go run ./cmd/server
 ```
 
+必须运行整个 `cmd/server` 包；不要使用 `go run cmd/server/main.go`，因为单文件模式不会编译同目录下按平台拆分的重启实现。`go run` 属于开发模式，不提供在线安装更新；生产环境请使用 GitHub Release 构建出的单二进制。
+
 ## Default credentials
 
 首次启动后，系统会自动创建两个默认账号：
@@ -27,6 +29,37 @@ go run ./cmd/server
 管理后台：`http://localhost:8005/admin`（或通过前端访问 `/admin`）。
 
 > **⚠️ 安全提示**：生产环境部署后请立即修改默认密码。
+
+## CLI 重置管理员密码
+
+忘记管理员密码时，可以直接使用主程序的 CLI 子命令。命令只连接数据库，不会启动 HTTP 服务：
+
+```bash
+go run ./cmd/server reset-admin-password --username admin
+```
+
+使用 Release 二进制时：
+
+```bash
+./cloudctf-linux-amd64 reset-admin-password --username admin
+```
+
+程序会在终端中隐藏输入新密码并要求确认。它默认读取 `.env` 中的 `DATABASE_URI`，也可以显式指定：
+
+```bash
+./cloudctf-linux-amd64 reset-admin-password \
+  --username admin \
+  --database-uri 'sqlite://data/cloudctf.db'
+```
+
+脚本环境可以通过标准输入传入密码：
+
+```bash
+printf '%s\n' "$NEW_ADMIN_PASSWORD" | \
+  ./cloudctf-linux-amd64 reset-admin-password --username admin --password-stdin
+```
+
+重置会恢复账号为启用状态、撤销已有刷新会话，并要求管理员下次登录后再次修改密码。修改 `.env` 中的 `FIRST_SUPERUSER_PASSWORD` **不会**重置已经存在的管理员。
 
 ## Database
 

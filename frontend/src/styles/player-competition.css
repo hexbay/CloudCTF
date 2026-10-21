@@ -273,7 +273,7 @@
 
 .arena-detail-modal .ant-modal-body {
   background:
-    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), transparent 24%) !important,
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), transparent 24%),
     linear-gradient(180deg, rgba(12, 20, 37, 0.98), rgba(10, 17, 32, 0.98)) !important;
 }
 
@@ -285,7 +285,7 @@
 .arena-detail-modal .arena-detail-modal-body > .ant-spin-nested-loading,
 .arena-detail-modal .arena-detail-modal-body .ant-spin-container {
   background:
-    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), transparent 24%) !important,
+    radial-gradient(circle at top right, rgba(34, 211, 238, 0.08), transparent 24%),
     linear-gradient(180deg, rgba(12, 20, 37, 0.98), rgba(10, 17, 32, 0.98)) !important;
 }
 

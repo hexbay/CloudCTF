@@ -4,7 +4,7 @@ CloudCTF 官方镜像发布在 Docker Hub：
 
 - [`peach0214/cloud_ctf`](https://hub.docker.com/r/peach0214/cloud_ctf)
 - `latest` 指向最近一次构建
-- 版本 Tag 与 GitHub Release 一致，例如 `v1.0.0`
+- 版本 Tag 对应 GitHub Release，例如 GitHub Tag `v1.0.0` 对应镜像 Tag `1.0.0`
 
 ## 拉取镜像
 
@@ -15,7 +15,7 @@ docker pull peach0214/cloud_ctf:latest
 生产环境建议固定版本，确认新版本后再主动升级：
 
 ```bash
-docker pull peach0214/cloud_ctf:v1.0.0
+docker pull peach0214/cloud_ctf:1.0.0
 ```
 
 ## 启动服务
@@ -70,7 +70,7 @@ docker rm cloudctf
 gh secret set DOCKERHUB_TOKEN --repo hexbay/CloudCTF
 ```
 
-配置完成并推送工作流改动后，可在 GitHub Actions 中手动运行 `Build and Release` 发布 `latest`；推送 `v*` Tag 时会同时发布对应版本 Tag 和 `latest`。
+配置完成并推送工作流改动后，可在 GitHub Actions 中手动运行 `Build and Release`，填写源码 `source_ref` 与镜像 `image_tag`；推送 `v*` Tag 时会自动发布去掉 `v` 前缀的版本 Tag 和 `latest`。
 
 ## 安全说明
 

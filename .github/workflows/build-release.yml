@@ -4,7 +4,16 @@ on:
   push:
     tags:
       - 'v*'  # 当推送 tag 时触发，如 v1.0.0
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Git branch, tag, or commit to build
+        required: true
+        default: main
+      image_tag:
+        description: Docker image tag (for example 1.0.0 or latest)
+        required: true
+        default: latest
 
 permissions:
   contents: write
@@ -19,17 +28,39 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      source_ref: ${{ steps.version.outputs.source_ref }}
+      docker_tags: ${{ steps.version.outputs.docker_tags }}
     steps:
       - name: Extract version from tag
         id: version
+        env:
+          DISPATCH_SOURCE_REF: ${{ inputs.source_ref }}
+          DISPATCH_IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
           if [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
+            SOURCE_REF=${GITHUB_REF#refs/tags/}
+            VERSION=${SOURCE_REF#v}
           else
-            VERSION=latest
+            SOURCE_REF=${DISPATCH_SOURCE_REF}
+            VERSION=${DISPATCH_IMAGE_TAG}
           fi
+
+          if [[ ! "$VERSION" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "Invalid Docker image tag: $VERSION" >&2
+            exit 1
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+          echo "source_ref=$SOURCE_REF" >> $GITHUB_OUTPUT
+          {
+            echo 'docker_tags<<EOF'
+            echo "${DOCKER_IMAGE}:${VERSION}"
+            if [[ "$VERSION" != "latest" ]]; then
+              echo "${DOCKER_IMAGE}:latest"
+            fi
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+          echo "Source: $SOURCE_REF; image tag: $VERSION"
 
   # 构建单一 Docker 镜像（多阶段：内嵌统一前端的 Go 二进制）
   build-image:
@@ -38,6 +69,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -54,9 +87,7 @@ jobs:
           context: .
           file: ./backend/Dockerfile
           push: true
-          tags: |
-            ${{ env.DOCKER_IMAGE }}:${{ needs.prepare.outputs.version }}
-            ${{ env.DOCKER_IMAGE }}:latest
+          tags: ${{ needs.prepare.outputs.docker_tags }}
           platforms: linux/amd64
           cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
@@ -72,6 +103,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -148,8 +181,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.prepare.outputs.version }}
-          name: ${{ needs.prepare.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           generate_release_notes: true
           files: |
             release-assets/cloudctf-*

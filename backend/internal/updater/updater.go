@@ -33,6 +33,7 @@ type Config struct {
 	Repository    string
 	APIBaseURL    string
 	Token         string
+	Proxy         string
 	Enabled       bool
 	Version       string
 	HTTPClient    *http.Client
@@ -103,7 +104,7 @@ type ApplyResult struct {
 func New(cfg Config) *Service {
 	client := cfg.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 10 * time.Minute}
+		client = newHTTPClient(cfg.Proxy)
 	}
 	apiBaseURL := strings.TrimRight(strings.TrimSpace(cfg.APIBaseURL), "/")
 	if apiBaseURL == "" {
@@ -130,6 +131,33 @@ func New(cfg Config) *Service {
 		goos:          goos,
 		goarch:        goarch,
 	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return fn(request)
+}
+
+func newHTTPClient(proxy string) *http.Client {
+	client := &http.Client{Timeout: 10 * time.Minute}
+	proxy = strings.TrimSpace(proxy)
+	if proxy == "" {
+		return client
+	}
+	proxyURL, err := url.Parse(proxy)
+	if err != nil || proxyURL.Host == "" {
+		client.Transport = roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("invalid network proxy URL")
+		})
+		return client
+	}
+	if transport, ok := http.DefaultTransport.(*http.Transport); ok {
+		clone := transport.Clone()
+		clone.Proxy = http.ProxyURL(proxyURL)
+		client.Transport = clone
+	}
+	return client
 }
 
 func (s *Service) Check(ctx context.Context) (CheckResult, error) {

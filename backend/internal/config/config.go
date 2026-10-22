@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -40,6 +41,7 @@ type Config struct {
 	UpdateRepository       string
 	UpdateAPIURL           string
 	UpdateGitHubToken      string
+	Proxy                  string
 }
 
 func Load() Config {
@@ -73,6 +75,7 @@ func Load() Config {
 		UpdateRepository:       env("UPDATE_REPOSITORY", "hexbay/CloudCTF"),
 		UpdateAPIURL:           env("UPDATE_API_URL", "https://api.github.com"),
 		UpdateGitHubToken:      env("UPDATE_GITHUB_TOKEN", ""),
+		Proxy:                  env("PROXY", ""),
 	}
 }
 
@@ -97,6 +100,9 @@ UPDATE_ENABLED=true
 UPDATE_DIR=data/updates
 UPDATE_REPOSITORY=hexbay/CloudCTF
 UPDATE_API_URL=https://api.github.com
+# GIT 资源仓库同步和在线更新共用代理，支持 HTTP 和 SOCKS5。
+# PROXY=http://127.0.0.1:10808
+# PROXY=socks5://127.0.0.1:10808
 `
 
 func configFilePath() string {
@@ -210,6 +216,18 @@ func (c Config) Validate() error {
 	}
 	if c.UpdateEnabled && strings.TrimSpace(c.UpdateDir) == "" {
 		issues = append(issues, "UPDATE_DIR must not be empty when online updates are enabled")
+	}
+	if c.Proxy != "" {
+		proxyURL, err := url.Parse(c.Proxy)
+		if err != nil || proxyURL.Host == "" {
+			issues = append(issues, "PROXY must be a valid proxy URL")
+		} else {
+			switch strings.ToLower(proxyURL.Scheme) {
+			case "http", "https", "socks5", "socks5h":
+			default:
+				issues = append(issues, "PROXY scheme must be http, https, socks5, or socks5h")
+			}
+		}
 	}
 
 	if c.IsProduction() {

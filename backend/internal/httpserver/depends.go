@@ -51,6 +51,7 @@ func NewServer(deps Dependencies) *Server {
 			Repository:    deps.Config.UpdateRepository,
 			APIBaseURL:    deps.Config.UpdateAPIURL,
 			Token:         deps.Config.UpdateGitHubToken,
+			Proxy:         deps.Config.Proxy,
 			Enabled:       deps.Config.UpdateEnabled,
 			Version:       deps.Version,
 			Persistent:    updater.RunningInContainer(),
@@ -123,7 +124,7 @@ func (s *Server) initServices(db *gorm.DB) {
 	reg.virtualizationHostService = services.NewVirtualizationHostService(db)
 	reg.resourceRepositoryService = services.NewResourceRepositoryService(db)
 	reg.vulnLabService = services.NewVulnLabService(db)
-	reg.templateRuntimeService = services.NewTemplateRuntimeService(db)
+	reg.templateRuntimeService = services.NewTemplateRuntimeService(db, s.config.Proxy)
 	s.templates = &templateResourceStore{db: db, srv: s}
 	reg.writeupService = services.NewWriteupService(db)
 	reg.challengeVirtualizationService = services.NewChallengeVirtualizationService(db)

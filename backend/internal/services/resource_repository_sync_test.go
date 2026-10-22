@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -33,6 +34,26 @@ func TestResourceRepositorySyncLockIsPerRepository(t *testing.T) {
 		t.Fatalf("repository lock was not released: %v", err)
 	}
 	releaseAgain()
+}
+
+func TestGitCommandEnvironmentUsesUnifiedProxy(t *testing.T) {
+	t.Setenv("HTTP_PROXY", "http://old-proxy:8080")
+	t.Setenv("https_proxy", "http://old-proxy:8080")
+	proxy := "socks5://127.0.0.1:10808"
+
+	env := gitCommandEnvironment(proxy)
+	values := make(map[string]string, len(env))
+	for _, entry := range env {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok {
+			values[strings.ToLower(key)] = value
+		}
+	}
+	for _, key := range []string{"http_proxy", "https_proxy", "all_proxy"} {
+		if values[key] != proxy {
+			t.Errorf("%s = %q, want %q", key, values[key], proxy)
+		}
+	}
 }
 
 func TestSyncGitRepositoryReplacesIncompleteRepository(t *testing.T) {
@@ -89,7 +110,7 @@ func TestSyncGitRepositoryReplacesIncompleteRepository(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(content) != "repository snapshot\n" {
+	if strings.ReplaceAll(string(content), "\r\n", "\n") != "repository snapshot\n" {
 		t.Fatalf("README.md = %q, want cloned repository content", content)
 	}
 }

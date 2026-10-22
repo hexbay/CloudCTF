@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -48,6 +49,65 @@ func TestDevelopmentBuildDoesNotOfferOnlineUpdate(t *testing.T) {
 	}
 	if result.Supported || result.UpdateAvailable {
 		t.Fatalf("development build unexpectedly supports updates: %+v", result)
+	}
+}
+
+func TestHTTPClientUsesConfiguredProxy(t *testing.T) {
+	for _, proxy := range []string{
+		"http://127.0.0.1:10808",
+		"socks5://127.0.0.1:10808",
+	} {
+		t.Run(proxy, func(t *testing.T) {
+			client := newHTTPClient(proxy)
+			transport, ok := client.Transport.(*http.Transport)
+			if !ok {
+				t.Fatalf("Transport type = %T, want *http.Transport", client.Transport)
+			}
+			request, err := http.NewRequest(http.MethodGet, "https://api.github.com", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			actual, err := transport.Proxy(request)
+			if err != nil {
+				t.Fatalf("Proxy() error = %v", err)
+			}
+			if actual == nil || actual.String() != proxy {
+				t.Fatalf("Proxy() = %v, want %s", actual, proxy)
+			}
+		})
+	}
+}
+
+func TestCheckUsesConfiguredHTTPProxy(t *testing.T) {
+	var proxyRequests atomic.Int32
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyRequests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(Release{
+			TagName: "v0.0.6",
+			Assets: []Asset{
+				{Name: "cloudctf-linux-amd64", Size: 64, BrowserDownloadURL: "https://downloads.example/cloudctf-linux-amd64"},
+				{Name: "cloudctf-linux-amd64.sha256", Size: 1, BrowserDownloadURL: "https://downloads.example/cloudctf-linux-amd64.sha256"},
+			},
+		})
+	}))
+	defer proxy.Close()
+
+	service := New(Config{
+		Repository: "hexbay/CloudCTF",
+		APIBaseURL: "http://api.github.test",
+		Proxy:      proxy.URL,
+		Enabled:    true,
+		Version:    "v0.0.5",
+		GOOS:       "linux",
+		GOARCH:     "amd64",
+	})
+	result, err := service.Check(context.Background())
+	if err != nil {
+		t.Fatalf("Check() error = %v", err)
+	}
+	if !result.UpdateAvailable || proxyRequests.Load() == 0 {
+		t.Fatalf("update check did not use configured proxy: %+v, requests=%d", result, proxyRequests.Load())
 	}
 }
 

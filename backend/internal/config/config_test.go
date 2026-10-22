@@ -78,3 +78,36 @@ func TestEnsureEnvFileDoesNotOverwriteExistingConfig(t *testing.T) {
 		t.Fatal("existing config was unexpectedly modified")
 	}
 }
+
+func TestLoadProxySupportsHTTPAndSOCKS5(t *testing.T) {
+	for _, proxy := range []string{
+		"http://127.0.0.1:10808",
+		"socks5://127.0.0.1:10808",
+	} {
+		t.Run(proxy, func(t *testing.T) {
+			t.Setenv("CONFIG_FILE", filepath.Join(t.TempDir(), ".env"))
+			t.Setenv("APP_ENV", "development")
+			t.Setenv("PROXY", proxy)
+
+			cfg := Load()
+			if cfg.Proxy != proxy {
+				t.Fatalf("Proxy = %q, want %q", cfg.Proxy, proxy)
+			}
+			if err := cfg.Validate(); err != nil {
+				t.Fatalf("proxy configuration should validate: %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateRejectsUnsupportedProxyScheme(t *testing.T) {
+	t.Setenv("CONFIG_FILE", filepath.Join(t.TempDir(), ".env"))
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("PROXY", "ftp://127.0.0.1:10808")
+
+	cfg := Load()
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "PROXY scheme") {
+		t.Fatalf("Validate() error = %v, want unsupported proxy scheme", err)
+	}
+}

@@ -25,6 +25,7 @@ import (
 type TemplateRuntimeService struct {
 	db               *gorm.DB
 	repositorySyncMu sync.Map
+	proxy            string
 }
 
 var ErrResourceRepositorySyncInProgress = errors.New("resource repository sync is already in progress")
@@ -44,8 +45,12 @@ type TemplateStartOptions struct {
 	ResolveComposeImage func(string) string
 }
 
-func NewTemplateRuntimeService(db *gorm.DB) *TemplateRuntimeService {
-	return &TemplateRuntimeService{db: db}
+func NewTemplateRuntimeService(db *gorm.DB, proxy ...string) *TemplateRuntimeService {
+	service := &TemplateRuntimeService{db: db}
+	if len(proxy) > 0 {
+		service.proxy = strings.TrimSpace(proxy[0])
+	}
+	return service
 }
 
 func StartTemplateContainers(ctx context.Context, template models.Templates, opts TemplateStartOptions) ([]map[string]any, error) {
@@ -158,7 +163,7 @@ func (s *TemplateRuntimeService) SyncResourceRepository(
 
 	repoDir := filepath.Join("data", "resource-repositories", strconv.FormatUint(uint64(repo.ID), 10))
 	logger.Info("resource sync step: cloning or updating repository snapshot", "repo_dir", repoDir, "branch", branch)
-	if err := syncGitRepository(logger, repoDir, repo.RepositoryURL, branch); err != nil {
+	if err := syncGitRepositoryWithProxy(logger, repoDir, repo.RepositoryURL, branch, s.proxy); err != nil {
 		logger.Error("resource sync step failed during git sync", "repo_id", repo.ID, "repo_dir", repoDir, "branch", branch, "error", err)
 		return 0, 0, err
 	}
@@ -636,6 +641,10 @@ func syncTemplateWorkspace(srcDir, dstDir string) error {
 }
 
 func syncGitRepository(logger *slog.Logger, targetDir, repositoryURL, branch string) error {
+	return syncGitRepositoryWithProxy(logger, targetDir, repositoryURL, branch, "")
+}
+
+func syncGitRepositoryWithProxy(logger *slog.Logger, targetDir, repositoryURL, branch, proxy string) error {
 	parentDir := filepath.Dir(targetDir)
 	if err := os.MkdirAll(parentDir, 0o755); err != nil {
 		return err
@@ -643,17 +652,17 @@ func syncGitRepository(logger *slog.Logger, targetDir, repositoryURL, branch str
 	if gitRepositoryHasValidHead(targetDir) {
 		if logger != nil {
 			logger.Info("git sync using existing repository", "repo_dir", targetDir, "repository_url", repositoryURL, "branch", branch)
-			logGitInspect(logger, targetDir, "remote-url", "remote", "get-url", "origin")
-			logGitInspect(logger, targetDir, "remote-branches", "ls-remote", "--heads", "origin")
-			logGitInspect(logger, targetDir, "local-branches", "branch", "-a")
+			logGitInspect(logger, proxy, targetDir, "remote-url", "remote", "get-url", "origin")
+			logGitInspect(logger, proxy, targetDir, "remote-branches", "ls-remote", "--heads", "origin")
+			logGitInspect(logger, proxy, targetDir, "local-branches", "branch", "-a")
 		}
-		if err := runGit(targetDir, "fetch", "--depth", "1", "origin", branch); err != nil {
+		if err := runGitWithProxy(proxy, targetDir, "fetch", "--depth", "1", "origin", branch); err != nil {
 			return err
 		}
-		if err := runGit(targetDir, "checkout", branch); err != nil {
+		if err := runGitWithProxy(proxy, targetDir, "checkout", branch); err != nil {
 			return err
 		}
-		return runGit(targetDir, "reset", "--hard", "origin/"+branch)
+		return runGitWithProxy(proxy, targetDir, "reset", "--hard", "origin/"+branch)
 	}
 	if logger != nil {
 		logger.Info("git sync cloning repository into staging directory", "repo_dir", targetDir, "repository_url", repositoryURL, "branch", branch)
@@ -666,7 +675,7 @@ func syncGitRepository(logger *slog.Logger, targetDir, repositoryURL, branch str
 	defer os.RemoveAll(stagingRoot)
 
 	stagingRepo := filepath.Join(stagingRoot, "repo")
-	if err := runGit("", "clone", "--depth", "1", "--branch", branch, repositoryURL, stagingRepo); err != nil {
+	if err := runGitWithProxy(proxy, "", "clone", "--depth", "1", "--branch", branch, repositoryURL, stagingRepo); err != nil {
 		return err
 	}
 	if !gitRepositoryHasValidHead(stagingRepo) {
@@ -723,6 +732,10 @@ func replaceGitRepositoryDirectory(stagingDir, targetDir string) error {
 }
 
 func runGit(dir string, args ...string) error {
+	return runGitWithProxy("", dir, args...)
+}
+
+func runGitWithProxy(proxy, dir string, args ...string) error {
 	// 统一封装 git 调用，便于保留完整报错输出。
 	cmd := exec.Command("git", args...)
 	if cmd.Err != nil {
@@ -734,6 +747,7 @@ func runGit(dir string, args ...string) error {
 	if dir != "" {
 		cmd.Dir = dir
 	}
+	cmd.Env = gitCommandEnvironment(proxy)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		details := strings.TrimSpace(string(output))
@@ -745,12 +759,34 @@ func runGit(dir string, args ...string) error {
 	return nil
 }
 
-func logGitInspect(logger *slog.Logger, dir, label string, args ...string) {
+func gitCommandEnvironment(proxy string) []string {
+	proxy = strings.TrimSpace(proxy)
+	if proxy == "" {
+		return os.Environ()
+	}
+	env := make([]string, 0, len(os.Environ())+6)
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		switch strings.ToUpper(key) {
+		case "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY":
+			continue
+		default:
+			env = append(env, entry)
+		}
+	}
+	for _, key := range []string{"HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"} {
+		env = append(env, key+"="+proxy)
+	}
+	return env
+}
+
+func logGitInspect(logger *slog.Logger, proxy, dir, label string, args ...string) {
 	if logger == nil {
 		return
 	}
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
+	cmd.Env = gitCommandEnvironment(proxy)
 	output, err := cmd.CombinedOutput()
 	text := strings.TrimSpace(string(output))
 	if err != nil {

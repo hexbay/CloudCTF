@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -263,46 +262,8 @@ func (srv *Server) adminVirtualizationTemplateStartHandler(w http.ResponseWriter
 		response.JSON(w, http.StatusBadRequest, map[string]any{"detail": "template host is not configured"})
 		return
 	}
-	host, err := srv.getVirtualizationHostService().GetByID(hostID)
-	if err != nil {
-		response.JSON(w, http.StatusBadRequest, map[string]any{"detail": "host not found"})
-		return
-	}
-	current, _, _ := containerGroupService.ListContainerGroups(1, 500, map[string][]string{})
-	for _, row := range current {
-		if stringifyID(row["template_id"]) == id {
-			status := cleanString(row["status"])
-			if status == "running" || status == "created" || status == "creating" {
-				response.JSON(w, http.StatusOK, map[string]any{
-					"success": true,
-					"group":   row,
-					"message": "template already started",
-				})
-				return
-			}
-		}
-	}
-	now := time.Now().Format(time.RFC3339)
-	expiresAt := time.Now().Add(srv.containerGroupLifetime())
-	groupName := buildTemplateGroupName(id, template["name"])
-	payload := map[string]any{
-		"name":          groupName,
-		"description":   "Container group for template " + cleanString(template["name"]),
-		"status":        "creating",
-		"host_id":       uintValue(template["host_id"]),
-		"template_id":   uintValue(template["id"]),
-		"template_name": cleanString(template["name"]),
-		"expires_at":    expiresAt.Format(time.RFC3339),
-		"created_at":    now,
-		"updated_at":    now,
-	}
-	if hasCurrentUser {
-		payload["user_id"] = currentUser.ID
-		payload["user_name"] = currentUser.Username
-	}
-	group, err := containerGroupService.CreateContainerGroup(payload)
-	if err != nil {
-		response.JSON(w, http.StatusInternalServerError, map[string]any{"detail": err.Error()})
+	if !hasCurrentUser {
+		response.JSON(w, http.StatusUnauthorized, map[string]any{"detail": "current user is required"})
 		return
 	}
 	templateModel, foundModel, err := srv.loadTemplateModelByID(id)
@@ -314,67 +275,38 @@ func (srv *Server) adminVirtualizationTemplateStartHandler(w http.ResponseWriter
 		response.JSON(w, http.StatusNotFound, map[string]any{"detail": "template not found"})
 		return
 	}
-	publicHost := "127.0.0.1"
-	if strings.TrimSpace(host.OutIP) != "" {
-		publicHost = strings.TrimSpace(host.OutIP)
+	current, _, _ := containerGroupService.ListContainerGroups(1, 500, map[string][]string{})
+	for _, row := range current {
+		if stringifyID(row["template_id"]) == id {
+			status := cleanString(row["status"])
+			if status == "running" || status == "created" || status == "creating" {
+				if cleanString(row["flag"]) == "" && strings.EqualFold(strings.TrimSpace(templateModel.TemplateType), "ctf") {
+					updated, repairErr := containerGroupService.EnsureTemplateGroupFlag(uintValue(row["id"]), templateModel)
+					if repairErr != nil {
+						response.JSON(w, http.StatusBadRequest, map[string]any{"detail": repairErr.Error()})
+						return
+					}
+					row = services.ContainerGroupToRow(updated)
+				}
+				response.JSON(w, http.StatusOK, map[string]any{
+					"success": true,
+					"group":   row,
+					"message": "template already started",
+				})
+				return
+			}
+		}
 	}
-	containers, startErr := services.StartTemplateContainers(r.Context(), *templateModel, services.TemplateStartOptions{
-		GroupID:       stringifyID(group["id"]),
-		Endpoint:      host.Endpoint,
-		PublicHost:    publicHost,
-		NetworkName:   "cg-" + stringifyID(group["id"]),
-		ManagedLabels: srv.managedContainerLabels,
-		ManagedCheck:  srv.isManagedContainer,
-		PullMissing:   services.PullDockerImage,
-		ResolveComposeImage: func(composeFile string) string {
-			return services.FirstImageFromComposeBuild(composeFile)
-		},
-	})
-	if startErr != nil {
-		row, _ := containerGroupService.UpdateContainerGroup(group["id"], map[string]any{
-			"status":        "error",
-			"error_message": startErr.Error(),
-			"updated_at":    time.Now().Format(time.RFC3339),
-		})
-		response.JSON(w, http.StatusBadRequest, map[string]any{
-			"detail": startErr.Error(),
-			"group":  row,
-		})
+	started, err := containerGroupService.StartTemplateGroup(templateModel, &currentUser, nil, nil)
+	if err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]any{"detail": err.Error()})
 		return
 	}
-	row, _ := containerGroupService.UpdateContainerGroup(group["id"], map[string]any{
-		"status":     "running",
-		"containers": containers,
-		"updated_at": time.Now().Format(time.RFC3339),
-		"started_at": time.Now().Format(time.RFC3339),
-	})
 	response.JSON(w, http.StatusOK, map[string]any{
 		"success": true,
-		"group":   row,
+		"group":   services.ContainerGroupToRow(*started),
 		"message": "template started",
 	})
-}
-
-func buildTemplateGroupName(templateID string, templateName any) string {
-	base := slugifyTemplateName(cleanString(templateName))
-	if base == "" {
-		base = "template"
-	}
-	return fmt.Sprintf("tpl-%s-%s-%d", templateID, base, time.Now().Unix())
-}
-
-func slugifyTemplateName(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	if value == "" {
-		return ""
-	}
-	re := regexp.MustCompile(`[^a-z0-9]+`)
-	value = re.ReplaceAllString(value, "-")
-	value = strings.Trim(value, "-")
-	if len(value) > 24 {
-		value = value[:24]
-	}
-	return strings.Trim(value, "-")
 }
 
 func (srv *Server) adminVirtualizationContainerGroupsHandler(w http.ResponseWriter, r *http.Request) {
@@ -646,15 +578,6 @@ func (srv *Server) populateContainerGroupDisplayFields(row map[string]any) {
 			row["host"] = srv.getVirtualizationHostService().ToRow(*host)
 		}
 	}
-}
-
-func (srv *Server) containerGroupLifetime() time.Duration {
-	settings := srv.loadSystemSettings()
-	seconds := intValue(settings["ctf_ttl_seconds"], 3600)
-	if seconds <= 0 {
-		seconds = 3600
-	}
-	return time.Duration(seconds) * time.Second
 }
 
 func containerRuntimeListValue(value any) models.ContainerRuntimeList {

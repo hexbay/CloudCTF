@@ -63,6 +63,38 @@ func TestTemplateRequiresDynamicFlag(t *testing.T) {
 	}
 }
 
+func TestEnsureTemplateGroupFlagSkipsConfiguredTemplate(t *testing.T) {
+	service := testContainerGroupService(t)
+	group := models.ContainerGroup{Name: "standalone", Status: "running", Flag: "flag{existing}"}
+	if err := service.db.Create(&group).Error; err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+
+	got, err := service.EnsureTemplateGroupFlag(group.ID, &models.Templates{TemplateType: "ctf"})
+	if err != nil {
+		t.Fatalf("ensure existing flag: %v", err)
+	}
+	if got.Flag != "flag{existing}" {
+		t.Fatalf("got flag %q, want existing flag", got.Flag)
+	}
+}
+
+func TestEnsureTemplateGroupFlagSkipsNonCtfTemplate(t *testing.T) {
+	service := testContainerGroupService(t)
+	group := models.ContainerGroup{Name: "compose", Status: "running"}
+	if err := service.db.Create(&group).Error; err != nil {
+		t.Fatalf("create group: %v", err)
+	}
+
+	got, err := service.EnsureTemplateGroupFlag(group.ID, &models.Templates{TemplateType: "compose"})
+	if err != nil {
+		t.Fatalf("ensure non-CTF group: %v", err)
+	}
+	if got.Flag != "" {
+		t.Fatalf("got flag %q for non-CTF template", got.Flag)
+	}
+}
+
 func TestStartVulnLabRuntimeValidatesTemplate(t *testing.T) {
 	service := testContainerGroupService(t)
 	user := models.User{Username: "lab-start-user", Email: "lab-start-user@example.com", HashedPassword: "x"}

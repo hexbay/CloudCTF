@@ -353,6 +353,48 @@ func (s *ContainerGroupService) UpdateContainersFlag(cli *client.Client, contain
 	return errors.New("write Flag Error: no container available")
 }
 
+func (s *ContainerGroupService) EnsureTemplateGroupFlag(groupID uint, template *models.Templates) (models.ContainerGroup, error) {
+	var zero models.ContainerGroup
+	group, found := s.GetContainerGroupByID(groupID)
+	if !found {
+		return zero, gorm.ErrRecordNotFound
+	}
+	if !templateRequiresDynamicFlag(template, nil) || strings.TrimSpace(group.Flag) != "" {
+		return group, nil
+	}
+	if group.HostID == nil || *group.HostID == 0 {
+		return zero, errors.New("容器组未绑定主机")
+	}
+	var host models.VirtualizationHost
+	if err := s.db.First(&host, *group.HostID).Error; err != nil {
+		return zero, err
+	}
+	containers := containerRuntimeListToRows(group.Containers)
+	if len(containers) == 0 {
+		return zero, errors.New("容器组没有可写入 Flag 的容器")
+	}
+	cli, err := DockerClientForEndpoint(host.Endpoint)
+	if err != nil {
+		return zero, err
+	}
+	defer cli.Close()
+	flag := GenerateDynamicFlag()
+	if err := s.UpdateContainersFlag(cli, containers, flag); err != nil {
+		return zero, fmt.Errorf("写入动态 Flag 失败: %w", err)
+	}
+	if _, err := s.updateContainerGroupRow(groupID, map[string]any{
+		"flag":       flag,
+		"updated_at": time.Now(),
+	}); err != nil {
+		return zero, err
+	}
+	updated, found := s.GetContainerGroupByID(groupID)
+	if !found {
+		return zero, gorm.ErrRecordNotFound
+	}
+	return updated, nil
+}
+
 func (s *ContainerGroupService) StartTemplateGroup(template *models.Templates, user *models.User, challenge *models.Challenge, vulLab *models.VulnLab) (*models.ContainerGroup, error) {
 	if err := s.db.Preload("Host").First(&template, template.Id).Error; err != nil {
 		return nil, err

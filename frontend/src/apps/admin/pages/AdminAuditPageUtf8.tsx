@@ -1,5 +1,5 @@
 import { ReloadOutlined } from "@ant-design/icons";
-import { Button, Card, Input, Space, Table, Tag, Typography, message } from "antd";
+import { Button, Card, Input, Space, Table, Tag, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import { adminApi } from "@shared/api/admin";
@@ -88,10 +88,6 @@ export function AdminAuditPage() {
 
   return (
     <div className="admin-page">
-      <Typography.Title level={4} className="admin-page-title">
-        审计日志
-      </Typography.Title>
-
       <Card className="admin-table-card" bordered={false}>
         <div className="resource-toolbar">
           <Space>

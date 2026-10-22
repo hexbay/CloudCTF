@@ -112,9 +112,6 @@ export function AdminExamPage() {
 
   return (
     <div className="admin-page">
-      <Typography.Title level={4} className="admin-page-title">
-        试卷管理
-      </Typography.Title>
       <Card className="admin-table-card" bordered={false}>
         <div className="resource-toolbar">
           <Typography.Title level={5}>已创建试卷</Typography.Title>

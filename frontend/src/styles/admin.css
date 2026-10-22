@@ -442,12 +442,6 @@
   font-size: 12px;
 }
 
-.admin-page-title {
-  margin: 4px 0 4px !important;
-  font-weight: 700 !important;
-  color: #111827 !important;
-}
-
 .admin-page-heading {
   display: flex;
   align-items: center;
@@ -1704,10 +1698,6 @@
 
 .virtualization-page {
   gap: 10px;
-}
-
-.virtualization-page .admin-page-title {
-  margin-bottom: 10px !important;
 }
 
 .virtualization-page .ant-tabs-tab {

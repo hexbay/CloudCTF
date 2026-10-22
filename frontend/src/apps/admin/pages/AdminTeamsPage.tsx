@@ -1,5 +1,5 @@
 import { DeleteOutlined, DownloadOutlined, EditOutlined, PlusOutlined, ReloadOutlined, UploadOutlined } from "@ant-design/icons";
-import { Button, Form, Input, InputNumber, Modal, Space, Table, Tag, Typography, Upload, message } from "antd";
+import { Button, Form, Input, InputNumber, Modal, Space, Table, Tag, Upload, message } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import { adminApi } from "@shared/api/admin";
@@ -181,10 +181,6 @@ export function AdminTeamsPage() {
 
   return (
     <div className="admin-page">
-      <Typography.Title level={4} className="admin-page-title">
-        队伍管理
-      </Typography.Title>
-
       <AdminDataTableCard
         title="队伍列表"
         search={

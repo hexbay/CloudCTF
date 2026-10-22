@@ -334,9 +334,6 @@ export function AdminCompetitionChallengesPage({
     <>
       {!embedded ? (
         <div className="admin-page-heading">
-          <Typography.Title level={4} className="admin-page-title">
-            比赛题目设置
-          </Typography.Title>
           <Button
             icon={<ArrowLeftOutlined />}
             onClick={() => navigate("/admin/competition")}

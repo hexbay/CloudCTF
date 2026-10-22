@@ -103,10 +103,6 @@ export function AdminNotificationsPage() {
 
   return (
     <div className="admin-page">
-      <Typography.Title level={4} className="admin-page-title">
-        通知中心
-      </Typography.Title>
-
       <Card className="admin-table-card" bordered={false}>
         <div className="resource-toolbar">
           <Typography.Title level={5}>管理员通知列表</Typography.Title>

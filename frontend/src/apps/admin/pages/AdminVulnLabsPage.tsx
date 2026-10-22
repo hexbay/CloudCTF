@@ -1,5 +1,5 @@
 import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
-import { App, Button, Form, Input, Modal, Select, Space, Switch, Table, Tag, Typography } from "antd";
+import { App, Button, Form, Input, Modal, Select, Space, Switch, Table, Tag } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import { adminApi } from "@shared/api/admin";
@@ -228,10 +228,6 @@ export function AdminVulnLabsPage() {
 
   return (
     <div className="admin-page">
-      <Typography.Title level={4} className="admin-page-title">
-        漏洞复现
-      </Typography.Title>
-
       <AdminDataTableCard
         title="漏洞复现列表"
         search={

@@ -348,10 +348,6 @@ export function AdminCompetitionListPage() {
 
   return (
     <div className="admin-page competition-list-page">
-      <Typography.Title level={4} className="admin-page-title">
-        比赛列表
-      </Typography.Title>
-
       <AdminDataTableCard
         title="比赛列表"
         className="competition-list-card"

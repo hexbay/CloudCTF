@@ -176,9 +176,6 @@ export function AdminTheoryPage() {
 
   return (
     <div className="admin-page">
-      <Typography.Title level={4} className="admin-page-title">
-        理论题库
-      </Typography.Title>
       <Card className="admin-table-card" bordered={false}>
         <div className="resource-toolbar">
           <Typography.Title level={5}>题库管理</Typography.Title>

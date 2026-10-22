@@ -327,9 +327,6 @@ export function AdminCompetitionDetailPage() {
   return (
     <div className="admin-page">
       <div className="admin-page-heading">
-        <Typography.Title level={4} className="admin-page-title">
-          {competition.name}
-        </Typography.Title>
         <Space>
           <Button
             icon={<ReloadOutlined />}

@@ -505,10 +505,6 @@ export function AdminSettingsPage() {
   return (
     <div className="admin-page">
       {contextHolder}
-      <Typography.Title level={4} className="admin-page-title">
-        系统设置
-      </Typography.Title>
-
       <Tabs
         destroyInactiveTabPane={false}
         activeKey={activeTabKey}

@@ -148,7 +148,6 @@ export function AdminDashboardPage() {
             <Tag className="dashboard-command-kicker" icon={<DashboardOutlined />}>
               CloudCTF Operations
             </Tag>
-            <Typography.Title level={2}>运营驾驶舱</Typography.Title>
             <Typography.Paragraph>
               聚合赛事、题库、用户、提交质量与增长趋势，先看整体态势，再决定今天优先处理哪条运营链路。
             </Typography.Paragraph>

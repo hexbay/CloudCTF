@@ -304,14 +304,53 @@ func GenerateDynamicFlag() string {
 	return fmt.Sprintf("flag{%s}", hex.EncodeToString(buf))
 }
 
+func containerGroupNameFor(template *models.Templates, user *models.User, challenge *models.Challenge, vulLab *models.VulnLab) string {
+	if template == nil || user == nil {
+		return ""
+	}
+	subject := strings.TrimSpace(template.Name)
+	if challenge != nil {
+		subject = firstNonEmpty(strings.TrimSpace(challenge.Name), subject)
+	} else if vulLab != nil {
+		subject = firstNonEmpty(strings.TrimSpace(vulLab.Name), subject)
+	}
+	subject = firstNonEmpty(subject, fmt.Sprintf("Template_%d", template.Id))
+	username := firstNonEmpty(strings.TrimSpace(user.Username), fmt.Sprintf("user_%d", user.ID))
+	return fmt.Sprintf("CTF_%s_%s", username, subject)
+}
+
+func templateRequiresDynamicFlag(template *models.Templates, challenge *models.Challenge) bool {
+	return challenge != nil || (template != nil && strings.EqualFold(strings.TrimSpace(template.TemplateType), "ctf"))
+}
+
 func (s *ContainerGroupService) UpdateContainersFlag(cli *client.Client, containers []map[string]any, flag string) error {
+	if cli == nil {
+		return errors.New("docker client is unavailable")
+	}
+	failures := make([]error, 0)
 	for _, container := range containers {
-		if err := ExecDockerContainer(context.Background(), cli, container["id"].(string), []string{"sh", "-lc", "/start.sh " + flag}); err != nil {
+		containerID := firstNonEmpty(cleanString(container["id"]), cleanString(container["container_id"]))
+		if containerID == "" {
 			continue
 		}
-		return nil
+		for _, command := range [][]string{
+			{"/start.sh", flag},
+			{"sh", "/start.sh", flag},
+			{"bash", "/start.sh", flag},
+		} {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			err := ExecDockerContainer(ctx, cli, containerID, command)
+			cancel()
+			if err == nil {
+				return nil
+			}
+			failures = append(failures, fmt.Errorf("%s %v: %w", containerID, command, err))
+		}
 	}
-	return errors.New("write Flag Error")
+	if len(failures) > 0 {
+		return fmt.Errorf("write Flag Error: %w", errors.Join(failures...))
+	}
+	return errors.New("write Flag Error: no container available")
 }
 
 func (s *ContainerGroupService) StartTemplateGroup(template *models.Templates, user *models.User, challenge *models.Challenge, vulLab *models.VulnLab) (*models.ContainerGroup, error) {
@@ -351,14 +390,8 @@ func (s *ContainerGroupService) StartTemplateGroup(template *models.Templates, u
 	}
 	if existing.ID == 0 {
 		// 创建记录
-		var name string
-		if challenge != nil {
-			name = fmt.Sprintf("CTF_%s_%s", user.Username, challenge.Name)
-		} else if vulLab != nil {
-			name = fmt.Sprintf("CTF_%s_%s", user.Username, vulLab.Name)
-		}
 		existing = models.ContainerGroup{
-			Name:         name,
+			Name:         containerGroupNameFor(template, user, challenge, vulLab),
 			Status:       "pending",
 			SourceType:   "template",
 			HostID:       optionalUintFromValue(host.ID),
@@ -372,6 +405,11 @@ func (s *ContainerGroupService) StartTemplateGroup(template *models.Templates, u
 			existing.VulnLabID = &vulLab.ID
 		}
 		if err := s.db.Create(&existing).Error; err != nil {
+			return nil, err
+		}
+	} else if strings.TrimSpace(existing.Name) == "" {
+		existing.Name = containerGroupNameFor(template, user, challenge, vulLab)
+		if err := s.db.Model(&existing).Update("name", existing.Name).Error; err != nil {
 			return nil, err
 		}
 	}
@@ -414,21 +452,44 @@ func (s *ContainerGroupService) StartTemplateGroup(template *models.Templates, u
 	}
 	flag := ""
 	updates := map[string]any{
+		"name":       existing.Name,
 		"status":     "running",
 		"containers": containers,
 		"updated_at": time.Now(),
 		"started_at": now,
 		"expires_at": expiresAt,
 	}
-	if challenge != nil {
-		cli, _ := DockerClientForEndpoint(host.Endpoint)
+	if templateRequiresDynamicFlag(template, challenge) {
+		cli, cliErr := DockerClientForEndpoint(host.Endpoint)
+		if cliErr != nil {
+			_ = s.DestroyContainerGroupRuntime(map[string]any{
+				"host_id":    host.ID,
+				"containers": containers,
+			})
+			_, _ = s.updateContainerGroupRow(groupID, map[string]any{
+				"status":     "error",
+				"containers": containers,
+				"updated_at": time.Now(),
+			})
+			return nil, fmt.Errorf("连接 Docker 失败: %w", cliErr)
+		}
+		defer cli.Close()
 		flag = GenerateDynamicFlag()
 		err = s.UpdateContainersFlag(cli, containers, flag)
 		if err != nil {
-			slog.Warn("更新FLAG失败")
-		} else {
-			updates["flag"] = flag
+			slog.Warn("更新 FLAG 失败", "group_id", groupID, "error", err)
+			_ = s.DestroyContainerGroupRuntime(map[string]any{
+				"host_id":    host.ID,
+				"containers": containers,
+			})
+			_, _ = s.updateContainerGroupRow(groupID, map[string]any{
+				"status":     "error",
+				"containers": containers,
+				"updated_at": time.Now(),
+			})
+			return nil, fmt.Errorf("写入动态 Flag 失败: %w", err)
 		}
+		updates["flag"] = flag
 	}
 	row, err := s.updateContainerGroupRow(groupID, updates)
 	if err != nil {

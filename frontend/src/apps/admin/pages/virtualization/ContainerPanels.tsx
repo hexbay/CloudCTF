@@ -670,7 +670,9 @@ export function ContainerGroupPanel() {
             loading={deletingId === String(row.id)}
             icon={<DeleteOutlined />}
             onClick={() => remove(row)}
-          />
+          >
+            删除
+          </Button>
         </Space>
       ),
     },

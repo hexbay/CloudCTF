@@ -37,6 +37,32 @@ func TestContainerGroupExpiresSupportsTimePointer(t *testing.T) {
 	}
 }
 
+func TestContainerGroupNameFallsBackToTemplateName(t *testing.T) {
+	template := &models.Templates{Id: 7, Name: "Web Challenge"}
+	user := &models.User{Username: "alice"}
+
+	got := containerGroupNameFor(template, user, nil, nil)
+	if got != "CTF_alice_Web Challenge" {
+		t.Fatalf("got %q, want template-based group name", got)
+	}
+}
+
+func TestTemplateRequiresDynamicFlag(t *testing.T) {
+	ctfTemplate := &models.Templates{TemplateType: "ctf"}
+	composeTemplate := &models.Templates{TemplateType: "compose"}
+	challenge := &models.Challenge{Name: "Challenge"}
+
+	if !templateRequiresDynamicFlag(ctfTemplate, nil) {
+		t.Fatal("expected CTF template to require a dynamic flag")
+	}
+	if !templateRequiresDynamicFlag(composeTemplate, challenge) {
+		t.Fatal("expected challenge-backed template to require a dynamic flag")
+	}
+	if templateRequiresDynamicFlag(composeTemplate, nil) {
+		t.Fatal("did not expect a standalone non-CTF template to require a dynamic flag")
+	}
+}
+
 func TestStartVulnLabRuntimeValidatesTemplate(t *testing.T) {
 	service := testContainerGroupService(t)
 	user := models.User{Username: "lab-start-user", Email: "lab-start-user@example.com", HashedPassword: "x"}

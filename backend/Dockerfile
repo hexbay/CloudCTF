@@ -24,6 +24,7 @@ FROM alpine:3.20
 ENV CLOUDCTF_CONTAINER=1 \
     APP_ENV=production
 WORKDIR /app
+RUN apk add --no-cache git
 COPY --from=builder /out/cloudctf-api /usr/local/bin/cloudctf-api
 COPY backend/.env.example /app/.env.example
 EXPOSE 8005

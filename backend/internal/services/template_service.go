@@ -632,12 +632,22 @@ func syncGitRepository(logger *slog.Logger, targetDir, repositoryURL, branch str
 func runGit(dir string, args ...string) error {
 	// 统一封装 git 调用，便于保留完整报错输出。
 	cmd := exec.Command("git", args...)
+	if cmd.Err != nil {
+		if errors.Is(cmd.Err, exec.ErrNotFound) {
+			return fmt.Errorf("resource repository sync requires Git: executable \"git\" was not found in PATH; install Git, add it to PATH, and restart CloudCTF")
+		}
+		return fmt.Errorf("prepare git %s: %w", strings.Join(args, " "), cmd.Err)
+	}
 	if dir != "" {
 		cmd.Dir = dir
 	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("git %s failed: %s", strings.Join(args, " "), strings.TrimSpace(string(output)))
+		details := strings.TrimSpace(string(output))
+		if details == "" {
+			return fmt.Errorf("git %s failed: %w", strings.Join(args, " "), err)
+		}
+		return fmt.Errorf("git %s failed: %w: %s", strings.Join(args, " "), err, details)
 	}
 	return nil
 }

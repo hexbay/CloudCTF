@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -123,6 +124,23 @@ func TestSyncResourceRepositoryWithCtfdbWeb2F12(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(workspaceDir, "files", "html")); err != nil {
 		t.Fatalf("files/html not synced: %v", err)
+	}
+}
+
+func TestRunGitReportsCommandStartFailure(t *testing.T) {
+	t.Setenv("PATH", "")
+
+	err := runGit("", "version")
+	if err == nil {
+		t.Fatal("expected git command failure")
+	}
+	if !strings.Contains(err.Error(), "requires Git") ||
+		!strings.Contains(err.Error(), "install Git") ||
+		!strings.Contains(err.Error(), "PATH") {
+		t.Fatalf("error = %q, want actionable Git installation message", err)
+	}
+	if strings.HasSuffix(err.Error(), ":") {
+		t.Fatalf("error = %q, want complete error message", err)
 	}
 }
 

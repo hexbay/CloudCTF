@@ -103,7 +103,7 @@ type ApplyResult struct {
 func New(cfg Config) *Service {
 	client := cfg.HTTPClient
 	if client == nil {
-		client = &http.Client{Timeout: 2 * time.Minute}
+		client = &http.Client{Timeout: 10 * time.Minute}
 	}
 	apiBaseURL := strings.TrimRight(strings.TrimSpace(cfg.APIBaseURL), "/")
 	if apiBaseURL == "" {

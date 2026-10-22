@@ -599,7 +599,13 @@ export function AdminSettingsPage() {
                       <Tag className="settings-version-pill" bordered={false}>
                         版本 {systemVersion}
                       </Tag>
-                      <Button icon={<CloudDownloadOutlined />} loading={updateChecking} disabled={updateApplying} onClick={() => void checkForUpdates()}>
+                      <Button
+                        className="settings-update-check-button"
+                        icon={<CloudDownloadOutlined />}
+                        loading={updateChecking}
+                        disabled={updateApplying}
+                        onClick={() => void checkForUpdates()}
+                      >
                         检查更新
                       </Button>
                     </Space>

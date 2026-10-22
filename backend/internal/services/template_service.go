@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"cloudctf/backend/internal/models"
@@ -22,8 +23,11 @@ import (
 
 // TemplateRuntimeService 用于模板和运行时相关操作
 type TemplateRuntimeService struct {
-	db *gorm.DB
+	db               *gorm.DB
+	repositorySyncMu sync.Map
 }
+
+var ErrResourceRepositorySyncInProgress = errors.New("resource repository sync is already in progress")
 
 type TemplateBuildOptions struct {
 	Logf func(format string, args ...any)
@@ -133,6 +137,11 @@ func (s *TemplateRuntimeService) SyncResourceRepository(
 		logger.Error("resource repository sync skipped because repository_url is empty", "repo_id", repo.ID, "repo_name", repo.Name)
 		return 0, 0, fmt.Errorf("repository_url is required")
 	}
+	release, err := s.beginResourceRepositorySync(repo.ID)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer release()
 
 	branch := strings.TrimSpace(repo.RepositoryBranch)
 	if branch == "" {
@@ -603,11 +612,11 @@ func syncTemplateWorkspace(srcDir, dstDir string) error {
 }
 
 func syncGitRepository(logger *slog.Logger, targetDir, repositoryURL, branch string) error {
-	// 已存在仓库时做 fetch/checkout/reset；否则直接浅克隆。
-	if err := os.MkdirAll(filepath.Dir(targetDir), 0o755); err != nil {
+	parentDir := filepath.Dir(targetDir)
+	if err := os.MkdirAll(parentDir, 0o755); err != nil {
 		return err
 	}
-	if _, err := os.Stat(filepath.Join(targetDir, ".git")); err == nil {
+	if gitRepositoryHasValidHead(targetDir) {
 		if logger != nil {
 			logger.Info("git sync using existing repository", "repo_dir", targetDir, "repository_url", repositoryURL, "branch", branch)
 			logGitInspect(logger, targetDir, "remote-url", "remote", "get-url", "origin")
@@ -623,10 +632,70 @@ func syncGitRepository(logger *slog.Logger, targetDir, repositoryURL, branch str
 		return runGit(targetDir, "reset", "--hard", "origin/"+branch)
 	}
 	if logger != nil {
-		logger.Info("git sync cloning repository", "repo_dir", targetDir, "repository_url", repositoryURL, "branch", branch)
+		logger.Info("git sync cloning repository into staging directory", "repo_dir", targetDir, "repository_url", repositoryURL, "branch", branch)
 	}
-	_ = os.RemoveAll(targetDir)
-	return runGit("", "clone", "--depth", "1", "--branch", branch, repositoryURL, targetDir)
+
+	stagingRoot, err := os.MkdirTemp(parentDir, "."+filepath.Base(targetDir)+".clone-")
+	if err != nil {
+		return fmt.Errorf("create repository clone staging directory: %w", err)
+	}
+	defer os.RemoveAll(stagingRoot)
+
+	stagingRepo := filepath.Join(stagingRoot, "repo")
+	if err := runGit("", "clone", "--depth", "1", "--branch", branch, repositoryURL, stagingRepo); err != nil {
+		return err
+	}
+	if !gitRepositoryHasValidHead(stagingRepo) {
+		return fmt.Errorf("cloned repository snapshot is incomplete: %s", stagingRepo)
+	}
+	if err := replaceGitRepositoryDirectory(stagingRepo, targetDir); err != nil {
+		return fmt.Errorf("activate repository snapshot: %w", err)
+	}
+	return nil
+}
+
+func (s *TemplateRuntimeService) beginResourceRepositorySync(repoID uint) (func(), error) {
+	lockValue, _ := s.repositorySyncMu.LoadOrStore(repoID, &sync.Mutex{})
+	lock := lockValue.(*sync.Mutex)
+	if !lock.TryLock() {
+		return nil, ErrResourceRepositorySyncInProgress
+	}
+	return lock.Unlock, nil
+}
+
+func gitRepositoryHasValidHead(targetDir string) bool {
+	if _, err := os.Stat(filepath.Join(targetDir, ".git")); err != nil {
+		return false
+	}
+	cmd := exec.Command("git", "rev-parse", "--verify", "HEAD")
+	cmd.Dir = targetDir
+	return cmd.Run() == nil
+}
+
+func replaceGitRepositoryDirectory(stagingDir, targetDir string) error {
+	parentDir := filepath.Dir(targetDir)
+	backupDir := ""
+	if _, err := os.Stat(targetDir); err == nil {
+		backupDir = filepath.Join(parentDir, "."+filepath.Base(targetDir)+".previous-"+strconv.FormatInt(time.Now().UnixNano(), 10))
+		if err := os.Rename(targetDir, backupDir); err != nil {
+			return fmt.Errorf("move previous repository snapshot: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	if err := os.Rename(stagingDir, targetDir); err != nil {
+		if backupDir != "" {
+			if rollbackErr := os.Rename(backupDir, targetDir); rollbackErr != nil {
+				return errors.Join(fmt.Errorf("activate repository snapshot: %w", err), fmt.Errorf("restore previous repository snapshot: %w", rollbackErr))
+			}
+		}
+		return err
+	}
+	if backupDir != "" {
+		_ = os.RemoveAll(backupDir)
+	}
+	return nil
 }
 
 func runGit(dir string, args ...string) error {

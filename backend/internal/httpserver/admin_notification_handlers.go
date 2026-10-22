@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -313,6 +314,14 @@ func (srv *Server) adminResourceRepoSyncHandler(w http.ResponseWriter, r *http.R
 		now,
 		pruneMissing,
 	)
+	if errors.Is(err, services.ErrResourceRepositorySyncInProgress) {
+		logger.Warn("resource sync rejected because another sync is already running")
+		response.JSON(w, http.StatusConflict, map[string]any{
+			"detail":  err.Error(),
+			"success": false,
+		})
+		return
+	}
 	status := "completed"
 	messageText := fmt.Sprintf("synced %d templates", synced)
 	if deleted > 0 {

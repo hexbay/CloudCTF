@@ -83,6 +83,7 @@ type UpdateInfo = {
   asset_name?: string;
   asset_size?: number;
   repository: string;
+  install_mode?: "in_place" | "persistent";
 };
 
 type AdminIdentity = {
@@ -250,9 +251,12 @@ export function AdminSettingsPage() {
       return;
     }
     const targetVersion = updateInfo.latest_version;
+    const updateDescription = updateInfo.install_mode === "persistent"
+      ? "系统会先自动创建数据备份，再下载并校验 GitHub Release。新版本将保存在 data/updates 中，重建容器后仍然有效；首次启动失败时会自动回退。"
+      : "系统会先自动创建数据备份，再下载并校验 GitHub Release，原子替换程序后自动重启。";
     modal.confirm({
       title: `更新到 ${targetVersion}`,
-      content: "系统会下载并校验 GitHub Release，替换程序后自动重启。更新前建议先创建数据备份，重启期间服务会短暂不可用。",
+      content: `${updateDescription} 重启期间服务会短暂不可用。`,
       okText: "确认更新",
       cancelText: "取消",
       okButtonProps: { danger: true },

@@ -38,7 +38,6 @@ cat > cloudctf.env <<'EOF'
 APP_ENV=production
 HOST=0.0.0.0
 PORT=8005
-JWT_SECRET=replace-with-a-long-random-string
 LOG_LEVEL=info
 LOG_FILE=./cloudctf.log
 
@@ -111,6 +110,14 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now cloudctf
 ```
 
+首次启动会在工作目录生成 `data/.env`，其中包含随机 JWT 密钥和随机管理员密码。管理员用户名默认为 `admin`，登录前查看密码：
+
+```bash
+sudo grep '^FIRST_SUPERUSER_PASSWORD=' /srv/cloudctf/data/.env
+```
+
+请限制该文件的访问权限并纳入安全备份；不要提交到 Git。后续重启不会重新生成密码，修改该字段也不会重置数据库中已经存在的管理员账号。
+
 ## 5. 验证运行
 
 ```bash
@@ -129,22 +136,10 @@ curl http://127.0.0.1:8005/healthz
 - `http://<server>:8005/`
 - `http://<server>:8005/admin`
 
-如果服务启动失败并看到：
-
-```text
-invalid configuration: ALLOWED_ORIGINS must not contain * in production
-```
-
-说明当前 `APP_ENV=production`，但 `ALLOWED_ORIGINS` 未设置或仍为 `*`。请在 `cloudctf.env` 中把它改为实际访问源，例如：
+同源访问不需要设置 `ALLOWED_ORIGINS`。只有前端与 API 位于不同域名或端口时，才在 `cloudctf.env` 中填写允许的前端来源，例如：
 
 ```bash
 ALLOWED_ORIGINS=https://ctf.example.com
-```
-
-或没有域名时临时使用：
-
-```bash
-ALLOWED_ORIGINS=http://服务器IP:8005
 ```
 
 ## 6. 可选：通过 Nginx 反向代理
@@ -212,9 +207,11 @@ ALLOWED_ORIGINS=http://ctf.example.com
 1. 读取 `UPDATE_REPOSITORY` 的最新 GitHub Release（由 `v*` Tag 发布）
 2. 按当前架构下载 `cloudctf-linux-amd64` 或 `cloudctf-linux-arm64`
 3. 下载并验证同名 `.sha256` 文件
-4. 将当前二进制保留为 `.previous`，原子替换程序并自动重启
+4. 自动创建数据备份
+5. 单二进制部署将当前程序保留为 `.previous` 后原子替换；容器部署将版本保存到 `data/updates/`
+6. 自动重启；容器中新版本首次启动失败时自动回退到上一版本
 
-只有超级管理员可以执行更新。更新前仍建议先在“备份管理”中创建数据备份。公共仓库无需 GitHub Token；如果遇到 API 限额，可以在环境文件中设置 `UPDATE_GITHUB_TOKEN`，然后重启服务。
+只有超级管理员可以执行更新。公共仓库无需 GitHub Token；如果遇到 API 限额，可以在环境文件中设置 `UPDATE_GITHUB_TOKEN`，然后重启服务。
 
 运行服务的用户必须对二进制所在目录具有写权限，否则检查功能仍可使用，但安装会被拒绝。
 
@@ -224,7 +221,7 @@ ALLOWED_ORIGINS=http://ctf.example.com
 UPDATE_ENABLED=false
 ```
 
-容器化部署请使用官方镜像 `peach0214/cloud_ctf`，并通过拉取新镜像和重建容器升级，不要在容器内替换二进制。完整示例参见 [Docker 部署](/deployment/docker)。
+容器化部署会将在线更新持久化到 `data/updates/`，重建容器时继续挂载同一个 `data/` 目录即可保留版本。基础镜像或系统依赖变化时仍需拉取新镜像。完整说明参见 [Docker 部署](/deployment/docker)。
 
 查看状态：
 

@@ -89,6 +89,8 @@ jobs:
           push: true
           tags: ${{ needs.prepare.outputs.docker_tags }}
           platforms: linux/amd64
+          build-args: |
+            VERSION=${{ needs.prepare.outputs.version }}
           cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
 

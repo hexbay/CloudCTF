@@ -105,7 +105,7 @@ docker run -d --name cloudctf --restart unless-stopped \
   peach0214/cloud_ctf:latest
 ```
 
-首次启动会自动生成 JWT 密钥和初始管理员密码，并保存到宿主机 `data/.env`。首次登录前运行 `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env` 查看密码；请妥善保管该文件，并在重建容器时继续挂载相同的 `data/` 目录。同源访问无需设置 `ALLOWED_ORIGINS`。
+首次启动发现 `data/.env` 不存在时，会自动复制 `.env.example` 创建配置文件，并将 JWT 密钥和初始管理员密码替换为安全随机值。首次登录前运行 `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env` 查看密码；请妥善保管该文件，并在重建容器时继续挂载相同的 `data/` 目录。同源访问无需设置 `ALLOWED_ORIGINS`。
 
 > Docker Socket 等同于较高的宿主机权限。生产环境应隔离靶场节点，并限制挂载、网络和镜像来源。
 
@@ -164,11 +164,12 @@ CloudCTF 从环境变量读取配置，也支持通过 `CONFIG_FILE` 指定 `.en
 | `PORT` | `8005` | HTTP 监听端口 |
 | `APP_ENV` | `development` | 设为 `production` 启用生产安全检查 |
 | `DATABASE_URI` | `sqlite://data/cloudctf.db` | SQLite、MySQL 或 PostgreSQL 数据库连接 |
-| `JWT_SECRET` | `change-me` | JWT 密钥；生产环境必须修改 |
+| `JWT_SECRET` | 自动生成 | 首次运行时写入 `data/.env` 的随机 JWT 密钥 |
 | `FIRST_SUPERUSER_USERNAME` | `admin` | 首次创建的超级管理员用户名 |
-| `FIRST_SUPERUSER_PASSWORD` | 空 | 生产环境要求至少 12 位 |
-| `ALLOWED_ORIGINS` | `*` | 允许的跨域来源；生产环境必须显式配置 |
+| `FIRST_SUPERUSER_PASSWORD` | 自动生成 | 首次运行时写入 `data/.env`，用于首次登录 |
+| `ALLOWED_ORIGINS` | 空 | 仅跨域部署时填写允许的前端来源 |
 | `UPDATE_ENABLED` | `true` | 是否启用管理端在线更新入口 |
+| `UPDATE_DIR` | `data/updates` | 容器在线更新版本与回退状态的持久化目录 |
 
 完整配置、外部数据库、systemd 和反向代理示例参见[生产部署文档](https://hexbay.github.io/CloudCTF/guide/production-deploy)。
 
@@ -190,7 +191,7 @@ printf '%s\n' '新的强密码' | ./cloudctf-linux-amd64 reset-admin-password --
 
 ### 在线更新
 
-超级管理员进入管理端时会检查最新 GitHub Release；发现新版本后只提示，**不会自动安装**。管理员可在“系统设置 → 系统信息”中查看发布说明并手动确认更新。容器化部署建议通过重新构建或拉取镜像升级。
+超级管理员进入管理端时会检查最新 GitHub Release；发现新版本后只提示，**不会自动安装**。管理员可在“系统设置 → 系统信息”中查看发布说明并手动确认更新。更新前会自动备份；容器部署会把版本保存在 `data/updates/`，重建容器后仍然有效，首次启动失败时自动回退。基础镜像或系统依赖变化时仍需拉取新镜像。
 
 ## 项目结构
 

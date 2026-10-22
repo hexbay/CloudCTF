@@ -10,18 +10,21 @@ RUN npm run build
 
 # --- Stage 2: build the Go binaries with the frontend embedded ---
 FROM golang:1.26-alpine AS builder
+ARG VERSION=dev
 WORKDIR /src
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ ./
 # Place the frontend build where //go:embed all:dist expects it.
 COPY --from=frontend /web/dist ./internal/web/dist
-RUN go build -tags embed -o /out/cloudctf-api ./cmd/server
+RUN go build -tags embed -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/cloudctf-api ./cmd/server
 
 # --- Stage 3: minimal runtime image ---
 FROM alpine:3.20
+ENV CLOUDCTF_CONTAINER=1
 WORKDIR /app
 COPY --from=builder /out/cloudctf-api /usr/local/bin/cloudctf-api
+COPY backend/.env.example /app/.env.example
 EXPOSE 8005
 CMD ["cloudctf-api"]
 

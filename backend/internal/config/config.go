@@ -36,12 +36,14 @@ type Config struct {
 	ContainerManagedKey    string
 	ContainerManagedVal    string
 	UpdateEnabled          bool
+	UpdateDir              string
 	UpdateRepository       string
 	UpdateAPIURL           string
 	UpdateGitHubToken      string
 }
 
 func Load() Config {
+	ensureEnvFile()
 	loadEnvFiles()
 	ensureGeneratedSecrets()
 	return Config{
@@ -67,10 +69,116 @@ func Load() Config {
 		ContainerManagedKey:    env("CONTAINER_MANAGED_LABEL_KEY", "com.cloudctf.managed"),
 		ContainerManagedVal:    env("CONTAINER_MANAGED_LABEL_VALUE", "true"),
 		UpdateEnabled:          envBool("UPDATE_ENABLED", true),
+		UpdateDir:              env("UPDATE_DIR", "data/updates"),
 		UpdateRepository:       env("UPDATE_REPOSITORY", "hexbay/CloudCTF"),
 		UpdateAPIURL:           env("UPDATE_API_URL", "https://api.github.com"),
 		UpdateGitHubToken:      env("UPDATE_GITHUB_TOKEN", ""),
 	}
+}
+
+const fallbackEnvTemplate = `# CloudCTF configuration
+APP_NAME=CloudCTF API
+APP_ENV=development
+HOST=0.0.0.0
+PORT=8005
+LOG_LEVEL=info
+LOG_FILE=logs/backend.log
+DATABASE_URI=sqlite://data/cloudctf.db
+REDIS_ADDR=localhost:6379
+JWT_SECRET=
+FIRST_SUPERUSER_USERNAME=admin
+FIRST_SUPERUSER_PASSWORD=
+UPLOAD_DIR=static/uploads
+STATIC_DIR=static
+FRONTEND_DIR=../frontend/dist
+BACKUP_DIR=data/backups
+BACKUP_RETENTION=7
+UPDATE_ENABLED=true
+UPDATE_DIR=data/updates
+UPDATE_REPOSITORY=hexbay/CloudCTF
+UPDATE_API_URL=https://api.github.com
+`
+
+func configFilePath() string {
+	if path := strings.TrimSpace(os.Getenv("CONFIG_FILE")); path != "" {
+		return path
+	}
+	return filepath.Join("data", ".env")
+}
+
+// ensureEnvFile creates the first-run configuration from .env.example. The
+// generated file lives under data/ by default so Docker volume mounts preserve
+// credentials when the container is recreated.
+func ensureEnvFile() {
+	path := configFilePath()
+	if _, err := os.Stat(path); err == nil || !os.IsNotExist(err) {
+		return
+	}
+
+	template := []byte(fallbackEnvTemplate)
+	for _, candidate := range []string{".env.example", filepath.Join("backend", ".env.example")} {
+		if contents, err := os.ReadFile(candidate); err == nil {
+			template = contents
+			break
+		}
+	}
+
+	jwtSecret, err := randomSecret()
+	if err != nil {
+		return
+	}
+	adminPassword, err := randomSecret()
+	if err != nil {
+		return
+	}
+	contents := replaceEnvValue(string(template), "JWT_SECRET", jwtSecret)
+	contents = replaceEnvValue(contents, "FIRST_SUPERUSER_PASSWORD", adminPassword)
+
+	dir := filepath.Dir(path)
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return
+		}
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	if _, err = file.WriteString(contents); err == nil {
+		err = file.Sync()
+	}
+	closeErr := file.Close()
+	if err != nil || closeErr != nil {
+		_ = os.Remove(path)
+	}
+}
+
+func randomSecret() (string, error) {
+	var raw [32]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(raw[:]), nil
+}
+
+func replaceEnvValue(contents, key, value string) string {
+	lines := strings.Split(strings.ReplaceAll(contents, "\r\n", "\n"), "\n")
+	prefix := key + "="
+	replaced := false
+	for index, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), prefix) {
+			lines[index] = prefix + value
+			replaced = true
+		}
+	}
+	if !replaced {
+		lines = append(lines, prefix+value)
+	}
+	result := strings.Join(lines, "\n")
+	if !strings.HasSuffix(result, "\n") {
+		result += "\n"
+	}
+	return result
 }
 
 func (c Config) HTTPAddr() string {
@@ -97,6 +205,9 @@ func (c Config) Validate() error {
 	if c.BackupRetention < 0 {
 		issues = append(issues, "BACKUP_RETENTION must be greater than or equal to 0")
 	}
+	if c.UpdateEnabled && strings.TrimSpace(c.UpdateDir) == "" {
+		issues = append(issues, "UPDATE_DIR must not be empty when online updates are enabled")
+	}
 
 	if c.IsProduction() {
 		if strings.TrimSpace(c.JWTSecret) == "" || c.JWTSecret == "change-me" {
@@ -122,6 +233,7 @@ func (c Config) EnsureRuntimePaths() error {
 		strings.TrimSpace(c.StaticDir),
 		strings.TrimSpace(c.UploadDir),
 		strings.TrimSpace(c.BackupDir),
+		strings.TrimSpace(c.UpdateDir),
 	}
 	for _, dir := range dirs {
 		if dir == "" {
@@ -161,11 +273,7 @@ func containsStringFold(items []string, target string) bool {
 // environment variables always win, so the file only provides fallbacks. A
 // missing file is ignored silently.
 func loadEnvFiles() {
-	path := strings.TrimSpace(os.Getenv("CONFIG_FILE"))
-	if path == "" {
-		path = filepath.Join("data", ".env")
-	}
-	applyEnvFile(path)
+	applyEnvFile(configFilePath())
 }
 
 // ensureGeneratedSecrets creates durable production credentials on first boot.
@@ -174,20 +282,16 @@ func ensureGeneratedSecrets() {
 	if !strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") {
 		return
 	}
-	path := strings.TrimSpace(os.Getenv("CONFIG_FILE"))
-	if path == "" {
-		path = filepath.Join("data", ".env")
-	}
+	path := configFilePath()
 	generated := make(map[string]string, 2)
 	for _, key := range []string{"JWT_SECRET", "FIRST_SUPERUSER_PASSWORD"} {
 		if strings.TrimSpace(os.Getenv(key)) != "" {
 			continue
 		}
-		var raw [32]byte
-		if _, err := rand.Read(raw[:]); err != nil {
+		value, err := randomSecret()
+		if err != nil {
 			continue
 		}
-		value := hex.EncodeToString(raw[:])
 		_ = os.Setenv(key, value)
 		generated[key] = value
 	}
@@ -240,8 +344,8 @@ func applyEnvFile(path string) {
 	defer file.Close()
 	externalEnv := make(map[string]struct{})
 	for _, entry := range os.Environ() {
-		key, _, ok := strings.Cut(entry, "=")
-		if ok {
+		key, value, ok := strings.Cut(entry, "=")
+		if ok && strings.TrimSpace(value) != "" {
 			externalEnv[key] = struct{}{}
 		}
 	}

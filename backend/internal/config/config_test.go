@@ -8,7 +8,13 @@ import (
 )
 
 func TestLoadGeneratesAndPersistsProductionSecrets(t *testing.T) {
-	configPath := filepath.Join(t.TempDir(), "data", ".env")
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "data", ".env")
+	template := "APP_NAME=Template CloudCTF\nAPP_ENV=development\nJWT_SECRET=change-me\nFIRST_SUPERUSER_USERNAME=admin\nFIRST_SUPERUSER_PASSWORD=change-me\n"
+	if err := os.WriteFile(filepath.Join(tempDir, ".env.example"), []byte(template), 0o600); err != nil {
+		t.Fatalf("write env template: %v", err)
+	}
+	t.Chdir(tempDir)
 	t.Setenv("CONFIG_FILE", configPath)
 	t.Setenv("APP_ENV", "production")
 	t.Setenv("JWT_SECRET", "")
@@ -25,6 +31,9 @@ func TestLoadGeneratesAndPersistsProductionSecrets(t *testing.T) {
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("generated production config should validate: %v", err)
 	}
+	if cfg.AppName != "Template CloudCTF" {
+		t.Fatalf("expected template content to be copied, got app name %q", cfg.AppName)
+	}
 
 	contents, err := os.ReadFile(configPath)
 	if err != nil {
@@ -35,6 +44,9 @@ func TestLoadGeneratesAndPersistsProductionSecrets(t *testing.T) {
 			t.Errorf("generated config does not contain %q", expected)
 		}
 	}
+	if strings.Contains(string(contents), "change-me") {
+		t.Fatal("generated config retained a placeholder secret")
+	}
 
 	// Loading again must reuse durable values instead of rotating credentials.
 	_ = os.Unsetenv("JWT_SECRET")
@@ -42,5 +54,24 @@ func TestLoadGeneratesAndPersistsProductionSecrets(t *testing.T) {
 	cfgAgain := Load()
 	if cfgAgain.JWTSecret != cfg.JWTSecret || cfgAgain.FirstSuperuserPassword != cfg.FirstSuperuserPassword {
 		t.Fatal("generated credentials changed between loads")
+	}
+}
+
+func TestEnsureEnvFileDoesNotOverwriteExistingConfig(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), ".env")
+	original := []byte("JWT_SECRET=keep-existing-secret\nFIRST_SUPERUSER_PASSWORD=keep-existing-password\n")
+	if err := os.WriteFile(configPath, original, 0o600); err != nil {
+		t.Fatalf("write existing config: %v", err)
+	}
+	t.Setenv("CONFIG_FILE", configPath)
+
+	ensureEnvFile()
+
+	contents, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read existing config: %v", err)
+	}
+	if string(contents) != string(original) {
+		t.Fatal("existing config was unexpectedly modified")
 	}
 }

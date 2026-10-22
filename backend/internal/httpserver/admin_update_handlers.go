@@ -47,6 +47,12 @@ func (srv *Server) adminUpdateApplyHandler(w http.ResponseWriter, r *http.Reques
 		response.JSON(w, http.StatusBadRequest, map[string]any{"detail": "release tag is required"})
 		return
 	}
+	backup, err := srv.getBackupService().CreateArchive(srv.config, "system-update-"+user.Username)
+	if err != nil {
+		srv.logger.Error("pre-update backup failed", "tag", tag, "username", user.Username, "error", err)
+		response.JSON(w, http.StatusInternalServerError, map[string]any{"detail": "pre-update backup failed: " + err.Error()})
+		return
+	}
 	result, err := srv.updater.Apply(r.Context(), tag)
 	if err != nil {
 		srv.logger.Error("system update failed", "tag", tag, "username", user.Username, "error", err)
@@ -68,6 +74,7 @@ func (srv *Server) adminUpdateApplyHandler(w http.ResponseWriter, r *http.Reques
 		"success": true,
 		"message": "update installed; service is restarting",
 		"data":    result,
+		"backup":  backup,
 	})
 	srv.logger.Info("system update installed", "from", result.PreviousVersion, "to", result.Version, "username", user.Username)
 	time.AfterFunc(750*time.Millisecond, srv.requestRestart)

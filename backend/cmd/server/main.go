@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +16,7 @@ import (
 	"cloudctf/backend/internal/config"
 	"cloudctf/backend/internal/httpserver"
 	"cloudctf/backend/internal/logging"
+	"cloudctf/backend/internal/updater"
 )
 
 var version = "dev"
@@ -36,6 +38,11 @@ func main() {
 	if err := cfg.EnsureRuntimePaths(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to prepare runtime paths: %v\n", err)
 		os.Exit(1)
+	}
+	if updater.RunningInContainer() {
+		if err := activatePersistentUpdate(version, cfg.UpdateDir); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to activate persistent update; using image version: %v\n", err)
+		}
 	}
 	logger := logging.NewLogger(cfg)
 	db, err := bootstrap.OpenDB(cfg.DatabaseURI)
@@ -70,10 +77,22 @@ func main() {
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
+	listener, err := net.Listen("tcp", server.Addr)
+	if err != nil {
+		logger.Error("api server failed to listen", "addr", server.Addr, "error", err)
+		os.Exit(1)
+	}
+	if updater.RunningInContainer() {
+		if executable, executableErr := os.Executable(); executableErr == nil {
+			if healthyErr := updater.MarkPersistentHealthy(version, cfg.UpdateDir, executable); healthyErr != nil {
+				logger.Warn("failed to mark persistent update healthy", "error", healthyErr)
+			}
+		}
+	}
 
 	go func() {
 		logger.Info("api server started", "addr", server.Addr)
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := server.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("api server failed", "error", err)
 			os.Exit(1)
 		}
@@ -98,7 +117,7 @@ func main() {
 	}
 	logger.Info("api server stopped")
 	if restartRequested {
-		if err := restartCurrentProcess(); err != nil {
+		if err := restartCurrentProcess(version, cfg.UpdateDir); err != nil {
 			logger.Error("failed to restart updated service", "error", err)
 			os.Exit(1)
 		}

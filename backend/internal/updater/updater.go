@@ -30,28 +30,32 @@ var (
 )
 
 type Config struct {
-	Repository string
-	APIBaseURL string
-	Token      string
-	Enabled    bool
-	Version    string
-	HTTPClient *http.Client
-	Executable string
-	GOOS       string
-	GOARCH     string
+	Repository    string
+	APIBaseURL    string
+	Token         string
+	Enabled       bool
+	Version       string
+	HTTPClient    *http.Client
+	Executable    string
+	Persistent    bool
+	PersistentDir string
+	GOOS          string
+	GOARCH        string
 }
 
 type Service struct {
-	repository string
-	apiBaseURL string
-	token      string
-	enabled    bool
-	version    string
-	client     *http.Client
-	executable string
-	goos       string
-	goarch     string
-	applyMu    sync.Mutex
+	repository    string
+	apiBaseURL    string
+	token         string
+	enabled       bool
+	version       string
+	client        *http.Client
+	executable    string
+	persistent    bool
+	persistentDir string
+	goos          string
+	goarch        string
+	applyMu       sync.Mutex
 }
 
 type Release struct {
@@ -84,6 +88,7 @@ type CheckResult struct {
 	AssetName       string    `json:"asset_name,omitempty"`
 	AssetSize       int64     `json:"asset_size,omitempty"`
 	Repository      string    `json:"repository"`
+	InstallMode     string    `json:"install_mode"`
 }
 
 type ApplyResult struct {
@@ -92,6 +97,7 @@ type ApplyResult struct {
 	AssetName       string `json:"asset_name"`
 	BackupPath      string `json:"backup_path"`
 	Restarting      bool   `json:"restarting"`
+	InstallMode     string `json:"install_mode"`
 }
 
 func New(cfg Config) *Service {
@@ -112,15 +118,17 @@ func New(cfg Config) *Service {
 		goarch = runtime.GOARCH
 	}
 	return &Service{
-		repository: strings.TrimSpace(cfg.Repository),
-		apiBaseURL: apiBaseURL,
-		token:      strings.TrimSpace(cfg.Token),
-		enabled:    cfg.Enabled,
-		version:    normalizeVersion(cfg.Version),
-		client:     client,
-		executable: strings.TrimSpace(cfg.Executable),
-		goos:       goos,
-		goarch:     goarch,
+		repository:    strings.TrimSpace(cfg.Repository),
+		apiBaseURL:    apiBaseURL,
+		token:         strings.TrimSpace(cfg.Token),
+		enabled:       cfg.Enabled,
+		version:       normalizeVersion(cfg.Version),
+		client:        client,
+		executable:    strings.TrimSpace(cfg.Executable),
+		persistent:    cfg.Persistent,
+		persistentDir: strings.TrimSpace(cfg.PersistentDir),
+		goos:          goos,
+		goarch:        goarch,
 	}
 }
 
@@ -128,7 +136,11 @@ func (s *Service) Check(ctx context.Context) (CheckResult, error) {
 	s.applyMu.Lock()
 	defer s.applyMu.Unlock()
 
-	result := CheckResult{CurrentVersion: s.version, Repository: s.repository}
+	installMode := "in_place"
+	if s.persistent {
+		installMode = "persistent"
+	}
+	result := CheckResult{CurrentVersion: s.version, Repository: s.repository, InstallMode: installMode}
 	if reason := s.unsupportedReason(); reason != "" {
 		result.Reason = reason
 		return result, nil
@@ -198,7 +210,17 @@ func (s *Service) Apply(ctx context.Context, requestedTag string) (ApplyResult, 
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(executable), ".cloudctf-update-*")
+	stagingDir := filepath.Dir(executable)
+	if s.persistent {
+		if s.persistentDir == "" {
+			return ApplyResult{}, errors.New("persistent update directory is not configured")
+		}
+		stagingDir = filepath.Join(s.persistentDir, ".staging")
+		if err := os.MkdirAll(stagingDir, 0o700); err != nil {
+			return ApplyResult{}, fmt.Errorf("create persistent update staging directory: %w", err)
+		}
+	}
+	tmp, err := os.CreateTemp(stagingDir, ".cloudctf-update-*")
 	if err != nil {
 		return ApplyResult{}, fmt.Errorf("create update file: %w", err)
 	}
@@ -236,7 +258,14 @@ func (s *Service) Apply(ctx context.Context, requestedTag string) (ApplyResult, 
 	}
 
 	backupPath := executable + ".previous"
-	if err := installUpdate(executable, tmpPath, backupPath); err != nil {
+	installMode := "in_place"
+	if s.persistent {
+		backupPath, err = installPersistentUpdate(s.persistentDir, executable, previousVersion, normalizeVersion(release.TagName), actualHash, tmpPath)
+		installMode = "persistent"
+	} else {
+		err = installUpdate(executable, tmpPath, backupPath)
+	}
+	if err != nil {
 		return ApplyResult{}, err
 	}
 	keepTemp = true
@@ -247,6 +276,7 @@ func (s *Service) Apply(ctx context.Context, requestedTag string) (ApplyResult, 
 		AssetName:       assetName,
 		BackupPath:      backupPath,
 		Restarting:      true,
+		InstallMode:     installMode,
 	}, nil
 }
 

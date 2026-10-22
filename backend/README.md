@@ -23,12 +23,18 @@ go run ./cmd/server
 
 | 角色   | 用户名  | 密码        |
 |--------|---------|-------------|
-| 管理员 | `admin` | `admin123456` |
+| 管理员 | `admin` | `data/.env` 中自动生成的 `FIRST_SUPERUSER_PASSWORD` |
 | 选手   | `player1` | `password123` |
 
 管理后台：`http://localhost:8005/admin`（或通过前端访问 `/admin`）。
 
-> **⚠️ 安全提示**：生产环境部署后请立即修改默认密码。
+查看管理员首次登录密码：
+
+```bash
+grep '^FIRST_SUPERUSER_PASSWORD=' data/.env
+```
+
+> **⚠️ 安全提示**：请勿公开 `data/.env`，生产环境首次登录后请立即修改管理员密码。
 
 ## CLI 重置管理员密码
 
@@ -86,7 +92,7 @@ Supported schemes are `sqlite://` (and `sqlite3://`), `mysql://`, `postgres://`,
 1. **真实环境变量**（`export KEY=value`）
 2. **配置文件**（默认读取 `data/.env`，也可通过 `CONFIG_FILE` 指定）
 
-本地开发可复制示例文件后按需修改（默认配置目录为 `data/`）：
+首次运行发现 `data/.env` 不存在时，程序会自动复制 `.env.example`，并将 JWT 密钥和初始管理员密码替换为安全随机值。也可以提前手动复制并按需修改：
 
 ```bash
 mkdir -p data
@@ -106,17 +112,18 @@ cp .env.example data/.env
 | `DATABASE_URI` | 数据库连接（`sqlite://...`、`mysql://...`、`postgres://...` 或 `postgresql://...`） | `sqlite://data/cloudctf.db` |
 | `REDIS_ADDR` | Redis 地址 | `localhost:6379` |
 | `FIRST_SUPERUSER_USERNAME` | 首次创建管理员时使用的用户名 | `admin` |
-| `JWT_SECRET` | JWT 签名密钥；生产环境未设置时自动生成并持久化 | 自动生成（生产环境） |
+| `JWT_SECRET` | JWT 签名密钥；首次运行时自动生成并持久化 | 自动生成 |
 | `UPLOAD_DIR` | 上传文件目录 | `static/uploads` |
 | `STATIC_DIR` | 静态资源目录 | `static` |
 | `FRONTEND_DIR` | 前端构建产物目录 | `../frontend/dist` |
 | `BACKUP_DIR` | 备份文件目录 | `data/backups` |
 | `BACKUP_RETENTION` | 备份保留天数 | `7` |
 | `ALLOWED_ORIGINS` | 允许跨域访问 API 的来源（逗号分隔）；同源访问无需设置 | 空（仅同源） |
-| `FIRST_SUPERUSER_PASSWORD` | 首次创建管理员时使用的密码；生产环境未设置时自动生成并持久化 | 自动生成（生产环境） |
+| `FIRST_SUPERUSER_PASSWORD` | 首次创建管理员时使用的密码；首次运行时自动生成并持久化 | 自动生成 |
 | `CONFIG_FILE` | 配置文件路径 | `data/.env` |
+| `UPDATE_DIR` | 容器在线更新版本与回退状态目录 | `data/updates` |
 
-生产环境启用 `APP_ENV=production` 时，若未设置 `JWT_SECRET` 和 `FIRST_SUPERUSER_PASSWORD`，程序会自动生成安全随机值并保存到 `data/.env`。确保该目录持久化，并从该文件读取首次管理员密码。跨域部署时才需要配置 `ALLOWED_ORIGINS`；直接通过同一服务地址访问时无需配置。
+首次运行时，程序会自动生成安全随机值并保存到 `data/.env`。确保该目录持久化，管理员用户名默认为 `admin`，首次登录密码可通过 `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env` 查看。跨域部署时才需要配置 `ALLOWED_ORIGINS`；直接通过同一服务地址访问时无需配置。
 
 复制 `.env.example` 时请勿将其 `APP_ENV` 改为生产后继续沿用示例中的占位密钥；生产部署推荐直接让程序生成并保存密钥。
 

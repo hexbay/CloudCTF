@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -152,6 +153,85 @@ func TestApplyRejectsWrongArchitecture(t *testing.T) {
 	})
 	if _, err := service.Apply(context.Background(), "v0.0.6"); err == nil {
 		t.Fatal("Apply() succeeded with an update for the wrong architecture")
+	}
+}
+
+func TestPersistentApplySurvivesContainerRecreation(t *testing.T) {
+	newBinary := fakeELF("amd64")
+	sum := sha256.Sum256(newBinary)
+	server := releaseServer(t, newBinary, hex.EncodeToString(sum[:])+"  cloudctf-linux-amd64\n")
+	defer server.Close()
+
+	dir := t.TempDir()
+	imageExecutable := filepath.Join(dir, "image-cloudctf")
+	oldBinary := []byte("image version binary")
+	if err := os.WriteFile(imageExecutable, oldBinary, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	updateDir := filepath.Join(dir, "data", "updates")
+	service := New(Config{
+		Repository: "hexbay/CloudCTF", APIBaseURL: server.URL, Enabled: true,
+		Version: "v0.0.5", Executable: imageExecutable, Persistent: true, PersistentDir: updateDir,
+		GOOS: "linux", GOARCH: "amd64", HTTPClient: server.Client(),
+	})
+	result, err := service.Apply(context.Background(), "v0.0.6")
+	if err != nil {
+		t.Fatalf("Apply() error = %v", err)
+	}
+	if result.InstallMode != "persistent" {
+		t.Fatalf("install mode = %q, want persistent", result.InstallMode)
+	}
+	imageContents, err := os.ReadFile(imageExecutable)
+	if err != nil || string(imageContents) != string(oldBinary) {
+		t.Fatal("persistent update modified the image executable")
+	}
+
+	selected, ok, err := SelectPersistentExecutable("v0.0.5", updateDir, imageExecutable)
+	if err != nil || !ok {
+		t.Fatalf("SelectPersistentExecutable() = %q, %v, %v", selected, ok, err)
+	}
+	if err := MarkPersistentHealthy("v0.0.6", updateDir, selected); err != nil {
+		t.Fatalf("MarkPersistentHealthy() error = %v", err)
+	}
+	selectedAgain, ok, err := SelectPersistentExecutable("v0.0.5", updateDir, imageExecutable)
+	if err != nil || !ok || selectedAgain != selected {
+		t.Fatalf("persistent update was not reused after recreation: %q, %v, %v", selectedAgain, ok, err)
+	}
+	if _, ok, err := SelectPersistentExecutable("v0.0.7", updateDir, imageExecutable); err != nil || ok {
+		t.Fatalf("older persistent update should not override newer image: ok=%v err=%v", ok, err)
+	}
+}
+
+func TestPersistentUpdateFallsBackAfterFailedFirstBoot(t *testing.T) {
+	newBinary := fakeELF("amd64")
+	sum := sha256.Sum256(newBinary)
+	server := releaseServer(t, newBinary, hex.EncodeToString(sum[:])+"  cloudctf-linux-amd64\n")
+	defer server.Close()
+
+	dir := t.TempDir()
+	imageExecutable := filepath.Join(dir, "image-cloudctf")
+	if err := os.WriteFile(imageExecutable, []byte("previous binary"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	updateDir := filepath.Join(dir, "updates")
+	service := New(Config{
+		Repository: "hexbay/CloudCTF", APIBaseURL: server.URL, Enabled: true,
+		Version: "v0.0.5", Executable: imageExecutable, Persistent: true, PersistentDir: updateDir,
+		GOOS: "linux", GOARCH: "amd64", HTTPClient: server.Client(),
+	})
+	if _, err := service.Apply(context.Background(), "v0.0.6"); err != nil {
+		t.Fatal(err)
+	}
+	first, ok, err := SelectPersistentExecutable("v0.0.5", updateDir, imageExecutable)
+	if err != nil || !ok {
+		t.Fatalf("first boot selection failed: %q, %v, %v", first, ok, err)
+	}
+	fallback, ok, err := SelectPersistentExecutable("v0.0.4", updateDir, imageExecutable)
+	if err != nil || !ok {
+		t.Fatalf("fallback selection failed: %q, %v, %v", fallback, ok, err)
+	}
+	if fallback == first || !strings.Contains(fallback, filepath.Join("versions", "0.0.5")) {
+		t.Fatalf("selected fallback %q, want preserved v0.0.5", fallback)
 	}
 }
 

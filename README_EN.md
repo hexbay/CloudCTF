@@ -105,7 +105,7 @@ docker run -d --name cloudctf --restart unless-stopped \
   peach0214/cloud_ctf:latest
 ```
 
-On first startup, CloudCTF generates a JWT signing key and initial admin password and saves them to the host-mounted `data/.env`. Before the first login, read the password with `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env`. Keep this file private and reuse the same `data/` volume when recreating the container. `ALLOWED_ORIGINS` is not needed for same-origin access.
+On first startup, if `data/.env` does not exist, CloudCTF copies `.env.example` to create it and replaces the JWT signing key and initial admin password with secure random values. Before the first login, read the password with `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env`. Keep this file private and reuse the same `data/` volume when recreating the container. `ALLOWED_ORIGINS` is not needed for same-origin access.
 
 > Access to the Docker socket is equivalent to elevated host privileges. Isolate range nodes in production and restrict mounts, networking, and image sources.
 
@@ -164,11 +164,12 @@ CloudCTF reads configuration from environment variables and can also load a `.en
 | `PORT` | `8005` | HTTP port |
 | `APP_ENV` | `development` | Use `production` to enable production safety checks |
 | `DATABASE_URI` | `sqlite://data/cloudctf.db` | SQLite, MySQL, or PostgreSQL connection |
-| `JWT_SECRET` | `change-me` | JWT secret; must be changed in production |
+| `JWT_SECRET` | generated | Random JWT secret written to `data/.env` on first startup |
 | `FIRST_SUPERUSER_USERNAME` | `admin` | Initial super administrator username |
-| `FIRST_SUPERUSER_PASSWORD` | empty | Must contain at least 12 characters in production |
-| `ALLOWED_ORIGINS` | `*` | CORS origins; must be explicit in production |
+| `FIRST_SUPERUSER_PASSWORD` | generated | Written to `data/.env` for the first admin login |
+| `ALLOWED_ORIGINS` | empty | Configure only when the frontend uses a different origin |
 | `UPDATE_ENABLED` | `true` | Enables the online update entry in the admin console |
+| `UPDATE_DIR` | `data/updates` | Persistent container updates and rollback state |
 
 See the [production deployment guide](https://hexbay.github.io/CloudCTF/guide/production-deploy) for complete configuration, external database, systemd, and reverse proxy examples.
 
@@ -190,7 +191,7 @@ printf '%s\n' 'new-strong-password' | ./cloudctf-linux-amd64 reset-admin-passwor
 
 ### Online updates
 
-CloudCTF checks the latest GitHub Release when a super administrator enters the admin console. It displays a notification but **never installs an update automatically**. Review the release notes and confirm the update manually under **System Settings → System Information**. Container deployments should update by rebuilding or pulling an image instead.
+CloudCTF checks the latest GitHub Release when a super administrator enters the admin console. It displays a notification but **never installs an update automatically**. Review the release notes and confirm it under **System Settings → System Information**. An automatic backup is created first. In containers, binaries and rollback state are persisted under `data/updates/`, survive container recreation, and roll back when the new version fails its first startup. Pull a new image when the base image or system dependencies change.
 
 ## Repository Layout
 

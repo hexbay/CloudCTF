@@ -17,6 +17,19 @@ import (
 	"cloudctf/backend/internal/models"
 )
 
+func TestMain(m *testing.M) {
+	tempDir, err := os.MkdirTemp("", "cloudctf-httpserver-config-*")
+	if err != nil {
+		panic(err)
+	}
+	_ = os.Setenv("CONFIG_FILE", filepath.Join(tempDir, ".env"))
+	_ = os.Setenv("JWT_SECRET", "httpserver-test-jwt-secret")
+	_ = os.Setenv("FIRST_SUPERUSER_PASSWORD", "admin123456")
+	code := m.Run()
+	_ = os.RemoveAll(tempDir)
+	os.Exit(code)
+}
+
 func testConfig() config.Config {
 	cfg := config.Load()
 	cfg.DatabaseURI = "sqlite://:memory:"

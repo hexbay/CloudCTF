@@ -2647,6 +2647,15 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
+.template-meta-tag.ant-tag {
+  margin-inline-end: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
 .challenge-search-form {
   grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
 }

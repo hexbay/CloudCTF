@@ -2,6 +2,26 @@ import { ApiOutlined, CloudServerOutlined, LinuxOutlined, WindowsOutlined } from
 import { Input, InputNumber, Space, Switch, Tag, Typography } from "antd";
 import type { Field, RowData } from "./types";
 import { statusMeta, templateStatusOptions } from "./constants";
+
+const templateTypeColors: Record<string, string> = {
+  ctf: "blue",
+  vul: "volcano",
+};
+
+const templateStatusColors: Record<string, string> = {
+  pending: "gold",
+  completed: "green",
+  ready: "green",
+  running: "green",
+  online: "green",
+  building: "blue",
+  creating: "blue",
+  restarting: "blue",
+  paused: "gold",
+  error: "red",
+  failed: "red",
+};
+
 export function renderField(field: Field) {
   if (field.type === "number") return <InputNumber style={{ width: "100%" }} />;
   if (field.type === "textarea")
@@ -68,7 +88,10 @@ export function renderValue(value: unknown, key?: string) {
     const option = templateStatusOptions.find((item) => item.value === s);
     const meta = statusMeta[s];
     return (
-      <Tag color={meta?.color ?? "default"}>
+      <Tag
+        color={templateStatusColors[s] ?? meta?.color ?? "default"}
+        className="template-meta-tag"
+      >
         {option?.label ?? meta?.label ?? s}
       </Tag>
     );
@@ -78,7 +101,15 @@ export function renderValue(value: unknown, key?: string) {
   }
   if (key && enumLabels[key]) {
     const label = enumLabels[key][String(value)];
-    return label ? <Tag>{label}</Tag> : <Tag>{String(value)}</Tag>;
+    const color =
+      key === "template_type" || key === "repo_type"
+        ? templateTypeColors[String(value)]
+        : undefined;
+    return (
+      <Tag color={color} className={color ? "template-meta-tag" : undefined}>
+        {label ?? String(value)}
+      </Tag>
+    );
   }
   if (typeof value === "boolean") {
     return <Tag color={value ? "green" : "default"}>{value ? "是" : "否"}</Tag>;

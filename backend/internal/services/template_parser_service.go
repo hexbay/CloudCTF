@@ -458,9 +458,9 @@ func (p ctfdbRepoTemplateParser) Discover(repoDir, scanRoot, repoName string) ([
 	metaPaths := scanFile(scanRoot, []string{"metadata.yml", "metadata.yaml"})
 	for _, metaPath := range metaPaths {
 		dir := filepath.Dir(metaPath)
-		metadata := readRepoMetadata(dir)
-		if metadata == nil {
-			slog.Warn("Parser MetaData Error")
+		metadata, metadataErr := readRepoMetadata(dir)
+		if metadataErr != nil {
+			slog.Warn("Parser MetaData Error", "path", metaPath, "error", metadataErr)
 			continue
 		}
 		relDir, err := filepath.Rel(repoDir, dir)
@@ -471,12 +471,13 @@ func (p ctfdbRepoTemplateParser) Discover(repoDir, scanRoot, repoName string) ([
 		relDir = filepath.ToSlash(relDir)
 		// 判断是否有Dockerfile
 		DockerFilePath := firstExistingFile(dir, "Dockerfile")
+		cveIDs := repoMetadataCVETags(metadata, metadata.Name, dir)
 		results = append(results, DiscoveredTemplate{
 			Name:           metadata.Name,
 			RepositoryPath: relDir,
 			Path:           dir,
 			Description:    metadata.Description,
-			Tags:           append(strings.Split(metadata.Cve, ","), "ctfdb", "ctf"),
+			Tags:           append(cveIDs, "ctfdb", "ctf"),
 			Services: []models.TemplateService{
 				{
 					Name:       metadata.Name,
@@ -523,10 +524,10 @@ func (p vulhubRepoTemplateParser) Discover(repoDir, scanRoot, repoName string) (
 		if err != nil {
 			return nil, err
 		}
-		metadata := readRepoMetadata(dir)
-		if metadata == nil {
+		metadata, metadataErr := readRepoMetadata(dir)
+		if metadataErr != nil {
 			metadata = &RepoMetaData{}
-			slog.Warn("repo metadata not found", "dir", dir)
+			slog.Warn("repo metadata not found", "dir", dir, "error", metadataErr)
 		}
 		services, ports := parserDockerComposeFromContent(content)
 		if len(services) == 0 && strings.TrimSpace(metadata.Image) != "" {
@@ -538,13 +539,14 @@ func (p vulhubRepoTemplateParser) Discover(repoDir, scanRoot, repoName string) (
 			}
 		}
 		name := firstNonEmptyString(metadata.Name, buildTemplateName(repoName, relDir))
+		cveIDs := repoMetadataCVETags(metadata, name, dir)
 		item := DiscoveredTemplate{
 			Name:           name,
 			RepositoryPath: relDir,
 			Path:           filepath.ToSlash(composeRel),
 			ComposeFile:    content,
 			Description:    metadata.Description,
-			Tags:           append(strings.Split(metadata.Cve, ","), "vulhub", "vul"),
+			Tags:           append(cveIDs, "vulhub", "vul"),
 			Services:       services,
 			Ports:          ports,
 		}
@@ -587,27 +589,80 @@ func firstComposeImage(content string) string {
 	return ""
 }
 
-type RepoMetaData struct {
-	Image       string `yaml:"image"`
-	Description string `yaml:"description"`
-	Name        string `yaml:"name"`
-	Cve         string `yaml:"cve"`
+type StringList []string
+
+func (values *StringList) UnmarshalYAML(node *yaml.Node) error {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		var value string
+		if err := node.Decode(&value); err != nil {
+			return err
+		}
+		*values = StringList(uniqueStrings(strings.Split(value, ",")))
+		return nil
+	case yaml.SequenceNode:
+		parsed := make([]string, 0, len(node.Content))
+		for _, item := range node.Content {
+			var value string
+			if err := item.Decode(&value); err != nil {
+				return fmt.Errorf("cve item at line %d, column %d: %w", item.Line, item.Column, err)
+			}
+			parsed = append(parsed, strings.Split(value, ",")...)
+		}
+		*values = StringList(uniqueStrings(parsed))
+		return nil
+	case yaml.AliasNode:
+		if node.Alias == nil {
+			return fmt.Errorf("cve alias at line %d, column %d has no target", node.Line, node.Column)
+		}
+		return values.UnmarshalYAML(node.Alias)
+	default:
+		return fmt.Errorf("cve must be a string or sequence at line %d, column %d", node.Line, node.Column)
+	}
 }
 
-func readRepoMetadata(dir string) *RepoMetaData {
+type RepoMetaData struct {
+	Image       string     `yaml:"image"`
+	Description string     `yaml:"description"`
+	Name        string     `yaml:"name"`
+	Cve         StringList `yaml:"cve"`
+}
+
+func readRepoMetadata(dir string) (*RepoMetaData, error) {
 	path := firstExistingFile(dir, "metadata.yml", "metadata.yaml")
 	if path == "" {
-		return nil
+		return nil, fmt.Errorf("metadata file not found in %s", dir)
 	}
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("read metadata %s: %w", path, err)
 	}
 	var metadata RepoMetaData
 	if err := yaml.Unmarshal(content, &metadata); err != nil {
+		return nil, fmt.Errorf("parse metadata %s: %w", path, err)
+	}
+	return &metadata, nil
+}
+
+var vulnerabilityIDPattern = regexp.MustCompile(`(?i)(CVE-\d{4}-\d{4,7}|CNVD-\d{4}-\d{4,7})`)
+
+func repoMetadataCVETags(metadata *RepoMetaData, templateName, templateDir string) []string {
+	if metadata == nil {
 		return nil
 	}
-	return &metadata
+	ids := []string(metadata.Cve)
+	if len(ids) == 0 {
+		ids = extractVulnerabilityIDs(templateName, filepath.Base(templateDir))
+	}
+	return uniqueStrings(ids)
+}
+
+func extractVulnerabilityIDs(values ...string) []string {
+	var ids []string
+	for _, value := range values {
+		ids = append(ids, vulnerabilityIDPattern.FindAllString(value, -1)...)
+	}
+	return uniqueStrings(ids)
 }
 
 func readMetadataMap(dir string) map[string]any {

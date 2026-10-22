@@ -320,6 +320,7 @@ func (srv *Server) registerAdminSettingsRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api-admin/settings/settings/info", srv.settingsInfoHandler)
 	mux.HandleFunc("GET /api-admin/settings/update/check", srv.adminUpdateCheckHandler)
 	mux.HandleFunc("POST /api-admin/settings/update/apply", srv.adminUpdateApplyHandler)
+	mux.HandleFunc("GET /api-admin/settings/update/status", srv.adminUpdateStatusHandler)
 	mux.HandleFunc("POST /api-admin/settings/cache/clear", adminSettingsCacheClearHandler)
 	mux.HandleFunc("POST /api-admin/settings/demo-data/generate", srv.adminGenerateDemoDataHandler)
 	mux.HandleFunc("GET /api-admin/settings/logs", srv.adminSettingsLogsHandler)

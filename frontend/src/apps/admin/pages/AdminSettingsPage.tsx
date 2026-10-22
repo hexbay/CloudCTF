@@ -86,6 +86,20 @@ type UpdateInfo = {
   install_mode?: "in_place" | "persistent";
 };
 
+type UpdateJob = {
+  id?: string;
+  tag?: string;
+  status?: "running" | "installed" | "restarting" | "failed";
+  stage?: string;
+  message?: string;
+  error?: string;
+};
+
+type UpdateStatus = {
+  current_version?: string;
+  job?: UpdateJob | null;
+};
+
 type AdminIdentity = {
   is_superuser?: boolean;
 };
@@ -263,9 +277,16 @@ export function AdminSettingsPage() {
       onOk: async () => {
         setUpdateApplying(true);
         try {
-          await adminApi.create("/api-admin/settings/update/apply", { tag: targetVersion });
-          message.loading({ content: `已安装 ${targetVersion}，正在等待服务重启…`, key: "system-update", duration: 0 });
-          await waitForUpdatedService(targetVersion);
+          const result = await adminApi.create<{ job?: UpdateJob }>(
+            "/api-admin/settings/update/apply",
+            { tag: targetVersion },
+          );
+          message.loading({
+            content: `更新任务已提交，正在准备 ${targetVersion}…`,
+            key: "system-update",
+            duration: 0,
+          });
+          await waitForUpdatedService(targetVersion, result.job?.id);
           message.success({ content: `已更新到 ${targetVersion}`, key: "system-update", duration: 2 });
           window.location.reload();
         } catch (error) {
@@ -870,21 +891,52 @@ function formatBytes(value?: number) {
   return `${size >= 10 || unit === 0 ? size.toFixed(0) : size.toFixed(1)} ${units[unit]}`;
 }
 
-async function waitForUpdatedService(version: string) {
-  await new Promise((resolve) => window.setTimeout(resolve, 1500));
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+async function waitForUpdatedService(version: string, jobId?: string) {
+  const targetVersion = normalizeUpdateVersion(version);
+  const deadline = Date.now() + 20 * 60 * 1000;
+  await new Promise((resolve) => window.setTimeout(resolve, 1000));
+  while (Date.now() < deadline) {
     try {
-      const response = await fetch(`/api/public/version?updated=${Date.now()}`, { cache: "no-store" });
+      const response = await fetch(
+        `/api/public/version?updated=${Date.now()}`,
+        { cache: "no-store" },
+      );
       if (response.ok) {
         const payload = (await response.json()) as { version?: string };
-        if (payload.version?.trim() === version) {
+        if (normalizeUpdateVersion(payload.version) === targetVersion) {
           return;
         }
       }
     } catch {
       // A connection failure is expected while the service is restarting.
     }
-    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+    let job: UpdateJob | null | undefined;
+    try {
+      const status = await adminApi.get<UpdateStatus>("/api-admin/settings/update/status");
+      if (normalizeUpdateVersion(status.current_version) === targetVersion) {
+        return;
+      }
+      job = status.job;
+    } catch {
+      // Status requests can fail briefly while the backend restarts.
+    }
+    if (job && (!jobId || job.id === jobId)) {
+      if (job.status === "failed") {
+        throw new Error(job.error || job.message || "系统更新失败");
+      }
+      if (job.message) {
+        message.loading({
+          content: job.message,
+          key: "system-update",
+          duration: 0,
+        });
+      }
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 2000));
   }
   throw new Error("新版本已安装，但服务未在预期时间内恢复，请检查服务日志");
+}
+
+function normalizeUpdateVersion(value?: string) {
+  return String(value ?? "").trim().replace(/^v/i, "");
 }

@@ -37,6 +37,7 @@ type Server struct {
 	bootedAt        time.Time
 	streamTicketsMu sync.Mutex
 	streamTickets   map[string]streamTicket
+	updateJob       updateJobState
 }
 
 // NewServer builds a fully initialized Server from its dependencies.

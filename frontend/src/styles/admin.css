@@ -330,6 +330,26 @@
   background: transparent !important;
 }
 
+.admin-github-button.ant-btn,
+.admin-github-button.ant-btn .anticon {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.admin-github-button.ant-btn:hover,
+.admin-github-button.ant-btn:focus-visible,
+.admin-github-button.ant-btn:active,
+.admin-github-button.ant-btn:hover .anticon,
+.admin-github-button.ant-btn:focus-visible .anticon,
+.admin-github-button.ant-btn:active .anticon {
+  color: #67e8f9 !important;
+}
+
+.admin-github-button.ant-btn:hover,
+.admin-github-button.ant-btn:focus-visible,
+.admin-github-button.ant-btn:active {
+  background: rgba(103, 232, 249, 0.1) !important;
+}
+
 .admin-user-trigger {
   border: 0;
   background: transparent;

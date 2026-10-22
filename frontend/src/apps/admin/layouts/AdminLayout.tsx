@@ -7,6 +7,7 @@ import {
   DashboardOutlined,
   FlagOutlined,
   GlobalOutlined,
+  GithubOutlined,
   ReadOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
@@ -133,6 +134,7 @@ export function AdminLayout() {
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [systemVersion, setSystemVersion] = useState("dev");
+  const [showGithubLink, setShowGithubLink] = useState(true);
   const [notificationApi, notificationContextHolder] = notification.useNotification();
   const [passwordForm] = Form.useForm<{ current_password: string; new_password: string; confirm_password: string }>();
   const visibleMenuItems = useMemo(
@@ -174,6 +176,22 @@ export function AdminLayout() {
       .version()
       .then((payload) => setSystemVersion(payload.version?.trim() || "dev"))
       .catch(() => setSystemVersion("dev"));
+  }, []);
+
+  useEffect(() => {
+    void publicApi
+      .settings()
+      .then((payload) => setShowGithubLink(payload.data?.show_github_link !== false))
+      .catch(() => setShowGithubLink(true));
+
+    const syncSettings = (event: Event) => {
+      const settings = (event as CustomEvent<{ show_github_link?: boolean }>).detail;
+      if (typeof settings?.show_github_link === "boolean") {
+        setShowGithubLink(settings.show_github_link);
+      }
+    };
+    window.addEventListener("system-settings-updated", syncSettings);
+    return () => window.removeEventListener("system-settings-updated", syncSettings);
   }, []);
 
   useEffect(() => {
@@ -326,6 +344,18 @@ export function AdminLayout() {
             <Tag className="admin-version-tag" bordered={false}>
               {systemVersion}
             </Tag>
+            {showGithubLink ? (
+              <Button
+                className="admin-icon-button admin-github-button"
+                type="text"
+                icon={<GithubOutlined />}
+                href="https://github.com/hexbay/CloudCTF"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="CloudCTF GitHub 仓库"
+                title="CloudCTF GitHub 仓库"
+              />
+            ) : null}
             <Button
               className="admin-lang-button"
               type="text"

@@ -25,17 +25,6 @@ const statusText: Record<string, string> = {
   finished: "已结束",
 };
 
-const categoryColor: Record<string, string> = {
-  web: "orange",
-  crypto: "purple",
-  reverse: "cyan",
-  pwn: "red",
-  misc: "green",
-  forensics: "blue",
-  mobile: "magenta",
-  blockchain: "gold",
-};
-
 export function PlayerDashboardPage() {
   const navigate = useNavigate();
   const [competitions, setCompetitions] = useState<PlayerCompetition[]>([]);
@@ -314,7 +303,7 @@ export function PlayerDashboardPage() {
                   >
                     <div className="dashboard-challenge-head">
                       <strong>{item.name}</strong>
-                      <Tag color={categoryColor[item.category] ?? "default"}>
+                      <Tag className={`challenge-category-tag category-${String(item.category).toLowerCase()}`}>
                         {item.category}
                       </Tag>
                     </div>
@@ -323,8 +312,10 @@ export function PlayerDashboardPage() {
                         "从这道题开始热身，快速进入今天的解题状态。"}
                     </p>
                     <div className="dashboard-challenge-meta">
-                      <span>{difficultyText(item.difficulty)}</span>
-                      <span>{item.points} 分</span>
+                      <Tag className={`challenge-difficulty-tag difficulty-${difficultyText(item.difficulty)}`}>
+                        {difficultyText(item.difficulty)}
+                      </Tag>
+                      <strong><TrophyOutlined /> {item.points} 分</strong>
                     </div>
                   </button>
                 ))}
@@ -401,13 +392,15 @@ export function PlayerDashboardPage() {
           <Card
             title="练习题速览"
             extra={<Link to="/challenges">前往题库</Link>}
-            className="player-list-card dashboard-section-card accent-amber dashboard-animate-card dashboard-animate-delay-3"
+            className="player-list-card dashboard-section-card dashboard-challenge-preview-card dashboard-animate-card dashboard-animate-delay-3"
           >
             {challenges.length ? (
               <List
+                className="dashboard-challenge-preview-list"
                 dataSource={challenges.slice(0, 5)}
                 renderItem={(item) => (
                   <List.Item
+                    className="dashboard-challenge-preview-item"
                     actions={[
                       <Button
                         key="solve"
@@ -421,13 +414,20 @@ export function PlayerDashboardPage() {
                     <List.Item.Meta
                       title={
                         <Space size={[8, 8]} wrap>
-                          <span>{item.name}</span>
-                          <Tag color={categoryColor[item.category]}>
+                          <strong>{item.name}</strong>
+                          <Tag className={`challenge-category-tag category-${String(item.category).toLowerCase()}`}>
                             {item.category}
                           </Tag>
                         </Space>
                       }
-                      description={`${difficultyText(item.difficulty)} · ${item.points} 分`}
+                      description={
+                        <Space size={10} wrap className="dashboard-challenge-preview-meta">
+                          <Tag className={`challenge-difficulty-tag difficulty-${difficultyText(item.difficulty)}`}>
+                            {difficultyText(item.difficulty)}
+                          </Tag>
+                          <span><TrophyOutlined /> {item.points} 分</span>
+                        </Space>
+                      }
                     />
                   </List.Item>
                 )}

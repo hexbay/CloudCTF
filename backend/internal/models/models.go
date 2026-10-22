@@ -9,7 +9,7 @@ type Role struct {
 	ID          uint      `gorm:"primaryKey" json:"id"`
 	Name        string    `gorm:"size:50;uniqueIndex;not null" json:"name"`
 	Description string    `gorm:"size:255" json:"description"`
-	Permissions string    `gorm:"type:longtext" json:"-"`
+	Permissions string    `json:"-"`
 	IsSystem    bool      `gorm:"not null;default:false" json:"is_system"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -25,7 +25,7 @@ type User struct {
 	FullName           string    `gorm:"size:255" json:"full_name"`
 	IsActive           bool      `gorm:"not null;default:true" json:"is_active"`
 	IsSuperuser        bool      `gorm:"not null;default:false" json:"is_superuser"`
-	Tags               string    `gorm:"type:longtext" json:"-"`
+	Tags               string    `json:"-"`
 	Avatar             string    `gorm:"size:255" json:"avatar"`
 	TeamID             *uint     `gorm:"index" json:"team_id"`
 	MustChangePassword bool      `gorm:"not null;default:false" json:"must_change_password"`
@@ -52,7 +52,7 @@ func (RefreshToken) TableName() string { return "refresh_tokens" }
 type Competition struct {
 	ID               uint       `gorm:"primaryKey" json:"id"`
 	Name             string     `gorm:"size:255;not null" json:"name"`
-	Description      string     `gorm:"type:longtext" json:"description"`
+	Description      string     `json:"description"`
 	Type             string     `gorm:"size:32;not null;default:ctf" json:"type"`
 	ParticipantMode  string     `gorm:"size:32;not null;default:individual" json:"participant_mode"`
 	Status           string     `gorm:"size:32;not null;default:draft" json:"status"`
@@ -62,7 +62,7 @@ type Competition struct {
 	RegistrationOpen bool       `gorm:"not null;default:false" json:"registration_open"`
 	ScoreboardFrozen bool       `gorm:"not null;default:false" json:"scoreboard_frozen"`
 	BannerURL        string     `gorm:"size:255" json:"banner_url"`
-	Config           string     `gorm:"type:longtext" json:"-"`
+	Config           string     `json:"-"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 }
@@ -72,7 +72,7 @@ func (Competition) TableName() string { return "competition" }
 type Team struct {
 	ID              uint       `gorm:"primaryKey" json:"id"`
 	Name            string     `gorm:"size:255;uniqueIndex;not null" json:"name"`
-	Description     string     `gorm:"type:longtext" json:"description"`
+	Description     string     `json:"description"`
 	OwnerID         uint       `gorm:"not null;index" json:"owner_id"`
 	Owner           User       `gorm:"foreignKey:OwnerID" json:"owner"`
 	InvitationCode  string     `gorm:"size:50;uniqueIndex" json:"invitation_code"`
@@ -127,7 +127,7 @@ func (u User) TagList() []string {
 type Challenge struct {
 	ID                uint         `gorm:"primaryKey" json:"id"`
 	Name              string       `gorm:"size:255;not null" json:"name"`
-	Description       string       `gorm:"type:longtext" json:"description"`
+	Description       string       `json:"description"`
 	Category          string       `gorm:"size:32;not null" json:"category"`
 	Points            int          `gorm:"not null;default:0" json:"points"`
 	Difficulty        int          `gorm:"not null;default:1" json:"difficulty"`
@@ -145,9 +145,9 @@ type Challenge struct {
 	CompetitionID     *uint        `json:"competition_id"`
 	Competition       *Competition `gorm:"foreignKey:CompetitionID" json:"competition,omitempty"`
 	SourceChallengeID *uint        `json:"source_challenge_id"`
-	LevelOneSolution  string       `gorm:"type:longtext" json:"-"`
-	Hints             string       `gorm:"type:longtext" json:"-"`
-	Files             string       `gorm:"type:longtext" json:"-"`
+	LevelOneSolution  string       `json:"-"`
+	Hints             string       `json:"-"`
+	Files             string       `json:"-"`
 	CreatedBy         *uint        `json:"created_by"`
 	CreatedAt         time.Time    `json:"created_at"`
 	UpdatedAt         time.Time    `json:"updated_at"`
@@ -169,12 +169,12 @@ func (c Challenge) FileList() []map[string]any {
 
 type TheoryQuestion struct {
 	ID           uint      `gorm:"primaryKey" json:"id"`
-	Question     string    `gorm:"type:longtext;not null" json:"question"`
+	Question     string    `gorm:"not null" json:"question"`
 	Points       int       `gorm:"not null;default:0" json:"points"`
 	Category     string    `gorm:"size:100" json:"category"`
 	Difficulty   int       `gorm:"not null;default:1" json:"difficulty"`
 	QuestionType string    `gorm:"size:32;not null;default:text" json:"question_type"`
-	Context      string    `gorm:"type:longtext;not null" json:"-"`
+	Context      string    `gorm:"not null" json:"-"`
 	CreatedBy    *uint     `json:"created_by"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
@@ -196,7 +196,7 @@ type Exam struct {
 	Title         string    `gorm:"size:200;not null;index" json:"title"`
 	TotalScore    int       `gorm:"not null;default:0" json:"total_score"`
 	IsActive      bool      `gorm:"not null;default:true" json:"is_active"`
-	Context       string    `gorm:"type:longtext;not null" json:"-"`
+	Context       string    `gorm:"not null" json:"-"`
 	CreatedBy     *uint     `json:"created_by"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
@@ -228,8 +228,8 @@ type ExamSubmission struct {
 	Correct       int        `gorm:"not null;default:0" json:"correct"`
 	Total         int        `gorm:"not null;default:0" json:"total"`
 	Status        string     `gorm:"size:32;not null;default:graded" json:"status"`
-	ReviewNote    string     `gorm:"type:longtext" json:"review_note"`
-	Answers       string     `gorm:"type:longtext;not null" json:"-"`
+	ReviewNote    string     `json:"review_note"`
+	Answers       string     `gorm:"not null" json:"-"`
 	SubmittedAt   time.Time  `gorm:"not null;index" json:"submitted_at"`
 	GradedAt      *time.Time `json:"graded_at"`
 	CreatedAt     time.Time  `json:"created_at"`
@@ -295,7 +295,7 @@ func (Scoreboard) TableName() string { return "scoreboard" }
 type Notification struct {
 	ID          uint       `gorm:"primaryKey" json:"id"`
 	Title       string     `gorm:"size:255;not null" json:"title"`
-	Content     string     `gorm:"type:longtext;not null" json:"content"`
+	Content     string     `gorm:"not null" json:"content"`
 	MessageType string     `gorm:"size:32;not null;default:system" json:"message_type"`
 	Audience    string     `gorm:"size:16;not null;default:player;index" json:"audience"`
 	Priority    string     `gorm:"size:16;not null;default:normal" json:"priority"`
@@ -319,7 +319,7 @@ func (Notification) TableName() string { return "notification" }
 type Announcement struct {
 	ID          uint       `gorm:"primaryKey" json:"id"`
 	Title       string     `gorm:"size:255;not null" json:"title"`
-	Content     string     `gorm:"type:longtext;not null" json:"content"`
+	Content     string     `gorm:"not null" json:"content"`
 	Summary     string     `gorm:"size:500" json:"summary"`
 	AuthorID    uint       `gorm:"not null" json:"author_id"`
 	IsPinned    bool       `gorm:"not null;default:false" json:"is_pinned"`
@@ -327,7 +327,7 @@ type Announcement struct {
 	IsPublished bool       `gorm:"not null;default:false" json:"is_published"`
 	TargetType  string     `gorm:"size:50;not null;default:all" json:"target_type"`
 	TargetID    *uint      `json:"target_id"`
-	Attachments string     `gorm:"type:longtext" json:"-"`
+	Attachments string     `json:"-"`
 	ViewCount   int        `gorm:"not null;default:0" json:"view_count"`
 	PublishedAt *time.Time `json:"published_at"`
 	CreatedAt   time.Time  `json:"created_at"`
@@ -347,7 +347,7 @@ type AuditLog struct {
 	ActionType   string    `gorm:"size:50;not null" json:"action_type"`    // 操作类型：login/logout/register/delete/ban/reset_password 等
 	ResourceType string    `gorm:"size:100;not null" json:"resource_type"` // 资源类型：user/competition/container 等
 	ResourceID   string    `gorm:"size:100" json:"resource_id"`            // 资源ID
-	Description  string    `gorm:"type:longtext" json:"description"`       // 操作描述
+	Description  string    `json:"description"`                            // 操作描述
 	IPAddress    string    `gorm:"size:50" json:"ip_address"`              // 操作IP
 	UserAgent    string    `gorm:"size:255" json:"user_agent"`             // 用户UA
 	CreatedAt    time.Time `json:"created_at"`                             // 创建时间
@@ -363,8 +363,8 @@ type TheorySubmission struct {
 	ExamID        *uint      `gorm:"index" json:"exam_id"`
 	Score         int        `gorm:"not null;default:0" json:"score"`
 	Status        string     `gorm:"size:32;not null;default:submitted" json:"status"`
-	ReviewNote    string     `gorm:"type:longtext" json:"review_note"`
-	Answers       string     `gorm:"type:longtext" json:"-"`
+	ReviewNote    string     `json:"review_note"`
+	Answers       string     `json:"-"`
 	SubmittedAt   *time.Time `json:"submitted_at"`
 	GradedAt      *time.Time `json:"graded_at"`
 	CreatedAt     time.Time  `json:"created_at"`
@@ -423,7 +423,7 @@ type BuildLog struct {
 	TemplateName string    `gorm:"size:255" json:"template_name"`
 	TaskID       string    `gorm:"size:255;index" json:"task_id"`
 	Status       string    `gorm:"size:32;not null" json:"status"`
-	Message      string    `gorm:"type:longtext" json:"message"`
+	Message      string    `json:"message"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -434,7 +434,7 @@ type TemplateSyncLog struct {
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	TemplateID *uint     `gorm:"index" json:"template_id"`
 	Status     string    `gorm:"size:32;not null" json:"status"`
-	Message    string    `gorm:"type:longtext" json:"message"`
+	Message    string    `json:"message"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
@@ -444,7 +444,7 @@ func (TemplateSyncLog) TableName() string { return "template_sync_logs" }
 type SystemSetting struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	Key       string    `gorm:"size:128;uniqueIndex;not null" json:"key"`
-	Value     string    `gorm:"type:longtext;not null" json:"value"`
+	Value     string    `gorm:"not null" json:"value"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -470,7 +470,7 @@ func (ChallengeVirtualization) TableName() string { return "challenge_virtualiza
 type VirtualizationHost struct {
 	ID          uint       `gorm:"primaryKey" json:"id"`
 	Name        string     `gorm:"size:100;not null" json:"name"`
-	Description string     `gorm:"type:longtext" json:"description"`
+	Description string     `json:"description"`
 	HostType    string     `gorm:"size:16;not null" json:"host_type"`
 	IsDefault   bool       `gorm:"not null;default:false" json:"is_default"`
 	Endpoint    string     `gorm:"size:255;not null" json:"endpoint"`
@@ -480,8 +480,8 @@ type VirtualizationHost struct {
 	Password    string     `gorm:"size:255" json:"-"`
 	Status      string     `gorm:"size:16;not null;default:offline" json:"status"`
 	LastCheck   *time.Time `json:"last_check"`
-	Resources   string     `gorm:"type:longtext" json:"-"`
-	Config      string     `gorm:"type:longtext" json:"-"`
+	Resources   string     `json:"-"`
+	Config      string     `json:"-"`
 	IsActive    bool       `gorm:"not null;default:true" json:"is_active"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
@@ -499,9 +499,9 @@ type VulnLab struct {
 	CVEID          string    `gorm:"size:64;index" json:"cve_id"`
 	Severity       string    `gorm:"size:32" json:"severity"`
 	Summary        string    `gorm:"size:512" json:"summary"`
-	Description    string    `gorm:"type:longtext" json:"description"`
-	ReproduceSteps string    `gorm:"type:longtext" json:"reproduce_steps"`
-	ReferenceLinks string    `gorm:"type:longtext" json:"-"`
+	Description    string    `json:"description"`
+	ReproduceSteps string    `json:"reproduce_steps"`
+	ReferenceLinks string    `json:"-"`
 	IsPublic       bool      `gorm:"not null;default:true" json:"is_public"`
 	IsActive       bool      `gorm:"not null;default:true" json:"is_active"`
 	TemplateID     uint      `gorm:"not null" json:"template_id"`
@@ -535,8 +535,8 @@ type ResourceRepo struct {
 	HostID           *uint      `json:"host_id"`
 	Enabled          bool       `gorm:"not null;default:true" json:"enabled"`
 	LastRunAt        *time.Time `json:"last_run_at"`
-	Tags             string     `gorm:"type:longtext" json:"-"`
-	Config           string     `gorm:"type:longtext" json:"-"`
+	Tags             string     `json:"-"`
+	Config           string     `json:"-"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
 }
@@ -558,7 +558,7 @@ func (r ResourceRepo) TagList() []string {
 type ContainerGroup struct {
 	ID            uint                 `gorm:"primaryKey" json:"id"`
 	Name          string               `gorm:"size:255;not null" json:"name"`
-	Description   string               `gorm:"type:longtext" json:"description"`
+	Description   string               `json:"description"`
 	Status        string               `gorm:"size:32;not null;default:pending;index" json:"status"`
 	SourceType    string               `gorm:"size:64;index" json:"source_type"`
 	HostID        *uint                `gorm:"index" json:"host_id"`
@@ -585,7 +585,7 @@ func (ContainerGroup) TableName() string { return "container_groups" }
 type Container struct {
 	ID            uint       `gorm:"primaryKey" json:"id"`
 	Name          string     `gorm:"size:255;not null" json:"name"`
-	Description   string     `gorm:"type:longtext" json:"description"`
+	Description   string     `json:"description"`
 	ContainerID   string     `gorm:"size:128;index" json:"container_id"`
 	Status        string     `gorm:"size:32;not null;default:pending;index" json:"status"`
 	State         string     `gorm:"size:32" json:"state"`
@@ -596,11 +596,11 @@ type Container struct {
 	CompetitionID *uint      `gorm:"index" json:"competition_id"`
 	UserID        *uint      `gorm:"index" json:"user_id"`
 	Image         string     `gorm:"size:255" json:"image"`
-	Ports         string     `gorm:"type:longtext" json:"-"`
-	Targets       string     `gorm:"type:longtext" json:"-"`
-	Environment   string     `gorm:"type:longtext" json:"-"`
-	Volumes       string     `gorm:"type:longtext" json:"-"`
-	Resources     string     `gorm:"type:longtext" json:"-"`
+	Ports         string     `json:"-"`
+	Targets       string     `json:"-"`
+	Environment   string     `json:"-"`
+	Volumes       string     `json:"-"`
+	Resources     string     `json:"-"`
 	Flag          string     `gorm:"size:255" json:"-"`
 	StartedAt     *time.Time `json:"started_at"`
 	ExpiresAt     *time.Time `gorm:"index" json:"expires_at"`
@@ -654,13 +654,13 @@ const (
 
 // Templates 模板/漏洞环境定义，从资源仓库同步
 type Templates struct {
-	Id            uint                `gorm:"primaryKey" json:"id"`              // 主键
-	CreatedAt     time.Time           `json:"created_at"`                        // 创建时间
-	UpdatedAt     time.Time           `json:"updated_at"`                        // 更新时间
-	ComposeFile   string              `gorm:"type:longtext" json:"compose_file"` // docker-compose 文件内容
-	Path          string              `gorm:"size:512" json:"path"`              // compose 文件在仓库中的相对路径
-	Description   string              `gorm:"type:longtext" json:"description"`  // 描述说明
-	HostId        *uint               `gorm:"index" json:"host_id"`              // 关联的虚拟化主机 ID
+	Id            uint                `gorm:"primaryKey" json:"id"` // 主键
+	CreatedAt     time.Time           `json:"created_at"`           // 创建时间
+	UpdatedAt     time.Time           `json:"updated_at"`           // 更新时间
+	ComposeFile   string              `json:"compose_file"`         // docker-compose 文件内容
+	Path          string              `gorm:"size:512" json:"path"` // compose 文件在仓库中的相对路径
+	Description   string              `json:"description"`          // 描述说明
+	HostId        *uint               `gorm:"index" json:"host_id"` // 关联的虚拟化主机 ID
 	Host          *VirtualizationHost `gorm:"foreignKey:HostId" json:"host,omitempty"`
 	LastSyncAt    time.Time           `json:"last_sync_at"`                           // 最后一次从仓库同步的时间
 	Name          string              `gorm:"size:255;not null" json:"name"`          // 模板名称

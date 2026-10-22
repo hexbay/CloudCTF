@@ -129,6 +129,7 @@ export type PublicSystemSettings = {
   allow_registration?: boolean;
   enable_notifications?: boolean;
   enable_writeup?: boolean;
+  show_github_link?: boolean;
   max_team_size?: number;
 };
 

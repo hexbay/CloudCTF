@@ -73,6 +73,14 @@ MySQL：
 DATABASE_URI=mysql://cloudctf:strong-password@tcp(127.0.0.1:3306)/cloudctf?charset=utf8mb4&parseTime=True&loc=Local
 ```
 
+PostgreSQL：
+
+```bash
+DATABASE_URI=postgres://cloudctf:strong-password@127.0.0.1:5432/cloudctf?sslmode=disable
+```
+
+MySQL 或 PostgreSQL 数据库需要提前创建，连接账号需要建表、修改表、创建索引和读写数据的权限。远程 PostgreSQL 生产环境建议按数据库服务要求启用 TLS，例如使用 `sslmode=require`。
+
 ## 3. 创建 systemd 服务
 
 创建主服务 `/etc/systemd/system/cloudctf.service`：
@@ -246,7 +254,7 @@ sudo systemctl stop cloudctf
 sudo systemctl start cloudctf
 ```
 
-密码会以隐藏方式交互输入。命令使用当前环境或 `CONFIG_FILE` 指定配置中的 `DATABASE_URI`，同时支持 SQLite 和 MySQL。修改 `FIRST_SUPERUSER_PASSWORD` 只影响首次创建账号，不能重置已有管理员。
+密码会以隐藏方式交互输入。命令使用当前环境或 `CONFIG_FILE` 指定配置中的 `DATABASE_URI`，同时支持 SQLite、MySQL 和 PostgreSQL。修改 `FIRST_SUPERUSER_PASSWORD` 只影响首次创建账号，不能重置已有管理员。
 
 ## 常见问题
 
@@ -264,7 +272,7 @@ sudo systemctl start cloudctf
 ### 想切换数据库怎么办？
 
 直接修改 `DATABASE_URI`，然后重启服务即可。  
-如果是从 SQLite 迁移到 MySQL，建议先做好数据导出 / 导入与备份验证。
+如果是在 SQLite、MySQL 和 PostgreSQL 之间切换，修改连接串本身不会迁移已有数据，请先做好数据导出、导入与备份验证。
 
 ### 页面可以打开，但动态靶机无法启动？
 

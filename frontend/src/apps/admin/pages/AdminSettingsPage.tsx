@@ -55,6 +55,7 @@ type SettingsForm = {
   vuln_ttl_seconds?: number;
   enable_writeup?: boolean;
   enable_notifications?: boolean;
+  show_github_link?: boolean;
 };
 
 type SystemInfo = {
@@ -177,6 +178,7 @@ export function AdminSettingsPage() {
       const values = await form.validateFields();
       setSaving(true);
       await adminApi.update("/api-admin/settings/settings", values);
+      window.dispatchEvent(new CustomEvent("system-settings-updated", { detail: values }));
       message.success("系统设置已保存");
     } catch (error) {
       if (error instanceof Error) {
@@ -549,6 +551,15 @@ export function AdminSettingsPage() {
                     <Switch />
                   </Form.Item>
                   <Form.Item label="启用通知" name="enable_notifications" valuePropName="checked">
+                    <Switch />
+                  </Form.Item>
+                  <Form.Item
+                    label="显示 GitHub 仓库入口"
+                    name="show_github_link"
+                    valuePropName="checked"
+                    initialValue
+                    tooltip="控制选手端和管理后台顶部导航中的 GitHub 图标，默认显示"
+                  >
                     <Switch />
                   </Form.Item>
                 </Form>

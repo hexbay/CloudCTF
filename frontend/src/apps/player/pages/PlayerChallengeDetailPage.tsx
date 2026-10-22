@@ -243,32 +243,37 @@ export function PlayerChallengeDetailPage() {
       {!loading && !data ? <Alert type="error" message="题目不存在或无法访问" showIcon /> : null}
       {!loading && data ? (
         <div className="challenge-detail-layout">
-          <div className="challenge-detail-breadcrumb">练兵场 / 题目详情</div>
-          <div className="challenge-detail-titlebar">
-            <Button type="text" className="challenge-detail-back" icon={<ArrowLeftOutlined />} onClick={() => navigate('/challenges')} />
-            <Typography.Title level={2} className="challenge-detail-title">
-              <FlagOutlined />
-              {data.name}
-            </Typography.Title>
+          <div className="challenge-detail-breadcrumb">
+            <Button type="text" className="challenge-detail-back" icon={<ArrowLeftOutlined />} onClick={() => navigate('/challenges')}>
+              返回题库
+            </Button>
+            <span aria-hidden="true">/</span>
+            <span>题目详情</span>
           </div>
 
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={16}>
               <Card className="challenge-detail-hero">
-                <Space wrap size={[8, 8]}>
-                  <Tag color={difficultyColor(data.difficulty)}>{difficulty}</Tag>
-                  <Tag>{data.category}</Tag>
-                  {data.solved ? <Tag color="success" icon={<CheckCircleOutlined />}>已解决</Tag> : null}
-                  {data.is_dynamic ? <Tag color="orange">动态环境</Tag> : <Tag color="default">静态题目</Tag>}
-                </Space>
-                <div className="arena-detail-head" style={{ marginTop: 18 }}>
-                  <div>
-                    <Typography.Title level={3} className="challenge-detail-heading">{data.name}</Typography.Title>
-                    <div className="challenge-detail-description" dangerouslySetInnerHTML={{ __html: (data.description || '暂无描述').replace(/\n/g, '<br />') }} />
+                <div className="challenge-detail-accent" />
+                <div className="challenge-detail-hero-top">
+                  <Space wrap size={[8, 8]} className="challenge-detail-tags">
+                    <Tag className={`challenge-difficulty-tag difficulty-${difficulty}`}>{difficulty}</Tag>
+                    <Tag className={`challenge-category-tag category-${String(data.category).toLowerCase()}`}>{data.category}</Tag>
+                    {data.solved ? <Tag className="challenge-state-tag is-solved" icon={<CheckCircleOutlined />}>已解决</Tag> : null}
+                    {data.is_dynamic ? <Tag className="challenge-state-tag is-dynamic">动态环境</Tag> : <Tag className="challenge-state-tag">静态题目</Tag>}
+                  </Space>
+                  <div className="challenge-detail-points" aria-label={`${data.points} 积分`}>
+                    <TrophyOutlined />
+                    <div>
+                      <span>题目积分</span>
+                      <strong>{data.points}</strong>
+                    </div>
                   </div>
-                  <div className="challenge-card-footer">
-                    <TrophyOutlined /> {data.points}
-                  </div>
+                </div>
+                <div className="challenge-detail-intro">
+                  <span className="challenge-detail-kicker">{data.category} Challenge</span>
+                  <Typography.Title level={2} className="challenge-detail-heading">{data.name}</Typography.Title>
+                  <div className="challenge-detail-description" dangerouslySetInnerHTML={{ __html: (data.description || '暂无描述').replace(/\n/g, '<br />') }} />
                 </div>
                 <div className="challenge-detail-sections">
                   {data.attachments?.length ? (
@@ -361,7 +366,7 @@ export function PlayerChallengeDetailPage() {
                     </div>
                   ) : null}
 
-                  <div className="challenge-detail-section">
+                  <div className="challenge-detail-section challenge-submit-panel">
                     <Divider orientation="left">提交 Flag</Divider>
                     <Input.Search
                       className="challenge-flag-search"
@@ -379,9 +384,14 @@ export function PlayerChallengeDetailPage() {
             </Col>
 
             <Col xs={24} lg={8} className="challenge-sidebar">
-              <Card className="challenge-detail-card challenge-stats-card">
-                <Statistic title="解题人数" value={data.solves_count ?? 0} prefix={<TeamOutlined />} />
-                <div className="challenge-first-blood">一血: {data.bloods?.[0]?.username ?? '暂无'}</div>
+              <Card title="挑战数据" className="challenge-detail-card challenge-stats-card">
+                <div className="challenge-stat-primary">
+                  <Statistic title="解题人数" value={data.solves_count ?? 0} prefix={<TeamOutlined />} />
+                </div>
+                <div className="challenge-first-blood">
+                  <span>一血记录</span>
+                  <strong>{data.bloods?.[0]?.username ?? '暂无'}</strong>
+                </div>
               </Card>
 
               <Card title="相似题目" className="challenge-detail-card challenge-related-card">

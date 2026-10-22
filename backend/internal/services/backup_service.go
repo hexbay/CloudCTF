@@ -228,7 +228,10 @@ func (s *BackupService) applyData(data map[string]json.RawMessage) error {
 			"competition_theory_question", "exam", "theory_question", "challenge",
 			"team_member", "team", "competition", "user", "role",
 		} {
-			_ = tx.Exec("DELETE FROM " + table).Error
+			statement := &gorm.Statement{DB: tx}
+			if err := tx.Exec("DELETE FROM " + statement.Quote(table)).Error; err != nil {
+				return fmt.Errorf("clear table %s failed: %w", table, err)
+			}
 		}
 		if err := restoreTable(tx, data["roles"], &[]models.Role{}); err != nil {
 			return err

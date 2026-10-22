@@ -243,6 +243,7 @@ func defaultSettings() map[string]any {
 		"vuln_ttl_seconds":     3800,
 		"enable_writeup":       true,
 		"enable_notifications": true,
+		"show_github_link":     true,
 	}
 }
 

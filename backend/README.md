@@ -73,7 +73,11 @@ DATABASE_URI=sqlite://data/cloudctf.db go run ./cmd/server
 DATABASE_URI="mysql://root:root@tcp(localhost:3306)/cloudctf?charset=utf8mb4&parseTime=True&loc=Local" go run ./cmd/server
 ```
 
-If `DATABASE_URI` is not set, SQLite is used by default at `data/cloudctf.db`.
+```bash
+DATABASE_URI="postgres://cloudctf:password@localhost:5432/cloudctf?sslmode=disable" go run ./cmd/server
+```
+
+Supported schemes are `sqlite://` (and `sqlite3://`), `mysql://`, `postgres://`, and `postgresql://`. If `DATABASE_URI` is not set, embedded SQLite is used by default at `data/cloudctf.db`. MySQL and PostgreSQL databases must exist before startup; CloudCTF automatically creates and migrates their tables.
 
 ## Configuration
 
@@ -98,7 +102,7 @@ cp .env.example .env
 | `PORT` | 监听端口 | `8005` |
 | `LOG_LEVEL` | 日志级别（debug/info/warn/error） | `info` |
 | `LOG_FILE` | 日志文件路径 | `logs/backend.log` |
-| `DATABASE_URI` | 数据库连接（`sqlite://...` 或 `mysql://...`） | `sqlite://data/cloudctf.db` |
+| `DATABASE_URI` | 数据库连接（`sqlite://...`、`mysql://...`、`postgres://...` 或 `postgresql://...`） | `sqlite://data/cloudctf.db` |
 | `REDIS_ADDR` | Redis 地址 | `localhost:6379` |
 | `JWT_SECRET` | JWT 签名密钥 | `change-me` |
 | `UPLOAD_DIR` | 上传文件目录 | `static/uploads` |

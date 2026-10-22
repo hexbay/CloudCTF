@@ -47,6 +47,7 @@ func (srv *Server) publicSystemSettings() map[string]any {
 		"allow_registration":   settings["allow_registration"],
 		"enable_notifications": settings["enable_notifications"],
 		"enable_writeup":       settings["enable_writeup"],
+		"show_github_link":     boolValue(settings["show_github_link"], true),
 		"max_team_size":        settings["max_team_size"],
 	}
 }

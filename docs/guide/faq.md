@@ -8,7 +8,7 @@ A: 当前主推方案是：
 
 - `systemd + 单二进制`
 - 前端已内嵌进服务二进制
-- 数据库按环境选择 SQLite 或 MySQL
+- 数据库按环境选择 SQLite、MySQL 或 PostgreSQL
 
 这也是当前文档默认描述的生产部署口径。
 
@@ -46,10 +46,11 @@ A: 不需要单独部署。
 
 A: 不是。
 
-当前支持通过 `DATABASE_URI` 配置多种数据库，生产场景常见两种：
+当前支持通过 `DATABASE_URI` 配置三种数据库：
 
 - `SQLite`：单机、轻量、开箱即用
 - `MySQL`：更适合正式生产环境
+- `PostgreSQL`：适合已有 PostgreSQL 基础设施的正式生产环境
 
 ### Q: 如何更新到新版本？
 

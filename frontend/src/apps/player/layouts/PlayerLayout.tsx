@@ -4,6 +4,7 @@ import {
   ControlOutlined,
   DownOutlined,
   FlagOutlined,
+  GithubOutlined,
   HomeOutlined,
   LogoutOutlined,
   TeamOutlined,
@@ -12,7 +13,7 @@ import {
 } from "@ant-design/icons";
 import { Avatar, Button, Dropdown, Layout, Menu, Space } from "antd";
 import { useEffect, useState } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   clearPlayerAuth,
   getStoredPlayerUser,
@@ -22,7 +23,7 @@ import {
 import { playerApi, type PublicSystemSettings } from "@shared/api/player";
 import type { MenuItem } from "@shared/types/menu";
 
-const { Header, Content } = Layout;
+const { Header, Content, Footer } = Layout;
 
 const menuItems: MenuItem[] = [
   { key: "/dashboard", icon: <HomeOutlined />, label: "首页" },
@@ -92,6 +93,7 @@ export function PlayerLayout() {
   const displayName =
     user?.username?.trim() || user?.full_name?.trim() || "用户";
   const canAccessAdmin = hasManagementAccess(user);
+  const showGithubLink = publicSettings.show_github_link !== false;
 
   return (
     <Layout className="player-shell">
@@ -107,6 +109,18 @@ export function PlayerLayout() {
           items={menuItems}
           onClick={({ key }) => navigate(key)}
         />
+        {showGithubLink ? (
+          <Button
+            className="player-github-button"
+            type="text"
+            icon={<GithubOutlined />}
+            href="https://github.com/hexbay/CloudCTF"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="CloudCTF GitHub 仓库"
+            title="CloudCTF GitHub 仓库"
+          />
+        ) : null}
         {loggedIn ? (
           <Dropdown
             menu={{
@@ -168,6 +182,39 @@ export function PlayerLayout() {
       <Content className="player-content">
         <Outlet />
       </Content>
+      <Footer className="player-footer">
+        <div className="player-footer-inner">
+          <div className="player-footer-main">
+            <div className="player-footer-brand">
+              <img src="/logo.svg" alt="" aria-hidden="true" />
+              <div>
+                <strong>{brandName}</strong>
+                <span>为 CTF 训练、竞赛与团队协作而构建</span>
+              </div>
+            </div>
+            <nav className="player-footer-links" aria-label="页脚导航">
+              <Link to="/challenges">练习题库</Link>
+              <Link to="/competition">赛事中心</Link>
+              <Link to="/scoreboard">排行榜</Link>
+              {showGithubLink ? (
+                <a
+                  className="player-footer-github"
+                  href="https://github.com/hexbay/CloudCTF"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <GithubOutlined />
+                  GitHub
+                </a>
+              ) : null}
+            </nav>
+          </div>
+          <div className="player-footer-bottom">
+            <span>© {new Date().getFullYear()} {brandName}</span>
+            <span>Open-source CTF Platform</span>
+          </div>
+        </div>
+      </Footer>
     </Layout>
   );
 }

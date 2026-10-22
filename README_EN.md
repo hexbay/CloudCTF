@@ -26,7 +26,7 @@
 
 ## Why CloudCTF
 
-CloudCTF brings the player portal, admin console, competition engine, and cyber range management into one self-hosted platform. It runs from a single binary with SQLite by default, while production installations can use MySQL and local or remote Docker hosts.
+CloudCTF brings the player portal, admin console, competition engine, and cyber range management into one self-hosted platform. It runs from a single binary with embedded SQLite by default, while production installations can use MySQL or PostgreSQL and local or remote Docker hosts.
 
 <table>
   <tr>
@@ -44,7 +44,7 @@ CloudCTF brings the player portal, admin console, competition engine, and cyber 
 ### Highlights
 
 - **All-in-one delivery** — the React frontend is embedded in the Go service, serving both portals from one binary.
-- **Flexible deployment** — Linux AMD64 / ARM64, Docker, SQLite, and MySQL are supported.
+- **Flexible deployment** — Linux AMD64 / ARM64, Docker, SQLite, MySQL, and PostgreSQL are supported.
 - **Complete range lifecycle** — manage Docker hosts, images, templates, container groups, and runtimes.
 - **Safe operations** — built-in backups, auditing, admin password recovery, and manual updates from GitHub Releases.
 - **Open for extension** — clear APIs, modular frontend and backend code, and comprehensive documentation.
@@ -110,6 +110,31 @@ docker run -d --name cloudctf --restart unless-stopped \
 
 > Access to the Docker socket is equivalent to elevated host privileges. Isolate range nodes in production and restrict mounts, networking, and image sources.
 
+### Database configuration
+
+CloudCTF switches databases through the single `DATABASE_URI` setting. When it is omitted, embedded SQLite is used and the database is created at `data/cloudctf.db`. Tables and initial records are prepared automatically when an empty database is connected for the first time.
+
+| Database | Example `DATABASE_URI` | Recommended use |
+| --- | --- | --- |
+| SQLite (default) | `sqlite://data/cloudctf.db` | Single-node deployments, evaluation, and small installations |
+| MySQL | `mysql://cloudctf:strong-password@tcp(mysql:3306)/cloudctf?charset=utf8mb4&parseTime=True&loc=Local` | Production with existing MySQL infrastructure |
+| PostgreSQL | `postgres://cloudctf:strong-password@postgres:5432/cloudctf?sslmode=disable` | Production with PostgreSQL infrastructure |
+
+For a binary or source deployment:
+
+```bash
+export DATABASE_URI='postgres://cloudctf:strong-password@127.0.0.1:5432/cloudctf?sslmode=disable'
+./cloudctf-linux-amd64
+```
+
+For Docker with an external database, add this option to the existing command:
+
+```bash
+-e DATABASE_URI='mysql://cloudctf:strong-password@tcp(mysql:3306)/cloudctf?charset=utf8mb4&parseTime=True&loc=Local'
+```
+
+> Create the database before starting CloudCTF. The account needs permission to create and alter tables and indexes, and to read and write data. Inside a container, `localhost` refers to that container; use the database service name or a reachable host address. For remote PostgreSQL production deployments, use `sslmode=require` or the certificate options required by your server. Changing the URI does not migrate existing data, so back up and validate the migration before switching databases.
+
 ### Run from source
 
 Development requires **Go 1.26+**, **Node.js 22.12+**, and npm. Dynamic labs and the full integration suite also require Docker.
@@ -133,14 +158,14 @@ CloudCTF reads configuration from environment variables and can also load a `.en
 | `HOST` | `0.0.0.0` | HTTP bind address |
 | `PORT` | `8005` | HTTP port |
 | `APP_ENV` | `development` | Use `production` to enable production safety checks |
-| `DATABASE_URI` | `sqlite://data/cloudctf.db` | SQLite or MySQL connection |
+| `DATABASE_URI` | `sqlite://data/cloudctf.db` | SQLite, MySQL, or PostgreSQL connection |
 | `JWT_SECRET` | `change-me` | JWT secret; must be changed in production |
 | `FIRST_SUPERUSER_USERNAME` | `admin` | Initial super administrator username |
 | `FIRST_SUPERUSER_PASSWORD` | empty | Must contain at least 12 characters in production |
 | `ALLOWED_ORIGINS` | `*` | CORS origins; must be explicit in production |
 | `UPDATE_ENABLED` | `true` | Enables the online update entry in the admin console |
 
-See the [production deployment guide](https://hexbay.github.io/CloudCTF/guide/production-deploy) for the complete configuration, MySQL, systemd, and reverse proxy examples.
+See the [production deployment guide](https://hexbay.github.io/CloudCTF/guide/production-deploy) for complete configuration, external database, systemd, and reverse proxy examples.
 
 ## Operations Cheat Sheet
 

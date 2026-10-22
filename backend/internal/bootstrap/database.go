@@ -11,6 +11,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -23,14 +24,16 @@ func OpenDB(databaseURI string) (*gorm.DB, error) {
 }
 
 func dialectorFromURI(databaseURI string) (gorm.Dialector, error) {
-	if strings.TrimSpace(databaseURI) == "" {
+	databaseURI = strings.TrimSpace(databaseURI)
+	if databaseURI == "" {
 		databaseURI = "sqlite://data/cloudctf.db"
 	}
 	scheme, dsn, ok := strings.Cut(databaseURI, "://")
 	if !ok {
-		return nil, fmt.Errorf("invalid database uri %q, expected sqlite:// or mysql://", databaseURI)
+		return nil, fmt.Errorf("invalid database uri %q, expected sqlite://, mysql://, postgres://, or postgresql://", databaseURI)
 	}
-	switch strings.ToLower(scheme) {
+	normalizedScheme := strings.ToLower(scheme)
+	switch normalizedScheme {
 	case "sqlite", "sqlite3":
 		if dsn == "" {
 			dsn = "data/cloudctf.db"
@@ -46,8 +49,10 @@ func dialectorFromURI(databaseURI string) (gorm.Dialector, error) {
 			dsn += "?charset=utf8mb4&parseTime=True&loc=Local"
 		}
 		return mysql.Open(dsn), nil
+	case "postgres", "postgresql":
+		return postgres.Open(normalizedScheme + "://" + dsn), nil
 	default:
-		return nil, fmt.Errorf("unsupported database uri scheme %q, expected sqlite:// or mysql://", scheme)
+		return nil, fmt.Errorf("unsupported database uri scheme %q, expected sqlite://, mysql://, postgres://, or postgresql://", scheme)
 	}
 }
 

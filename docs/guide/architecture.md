@@ -9,7 +9,7 @@ graph TB
   User["浏览器用户"] --> Server["CloudCTF Server<br/>单二进制"]
   Admin["管理员"] --> Server
 
-  Server --> DB["业务数据库<br/>SQLite / MySQL"]
+  Server --> DB["业务数据库<br/>SQLite / MySQL / PostgreSQL"]
   Server --> Files["本地文件存储"]
   Server --> Docker["Docker / 容器运行时"]
 ```
@@ -17,7 +17,7 @@ graph TB
 说明：
 
 - **前端已内嵌**：选手端与管理后台静态资源都由 `CloudCTF Server` 直接提供
-- **数据库可配置**：默认 SQLite，生产可切换 MySQL
+- **数据库可配置**：默认 SQLite，生产可切换 MySQL 或 PostgreSQL
 - **动态靶机运行时独立**：平台本身不依赖 Docker 部署，但动态题目运行仍可依赖 Docker
 
 ## 核心组件
@@ -44,6 +44,7 @@ graph TB
 
 - **SQLite**：单机、零依赖、快速启动
 - **MySQL**：生产环境推荐
+- **PostgreSQL**：使用 PostgreSQL 基础设施的生产环境
 
 ## 技术栈
 
@@ -54,7 +55,7 @@ graph TB
 | Go | 主服务语言 |
 | net/http | HTTP 服务 |
 | GORM | ORM 与数据库访问 |
-| SQLite / MySQL Driver | 可切换数据库 |
+| SQLite / MySQL / PostgreSQL Driver | 可切换数据库 |
 
 ### 前端
 
@@ -96,7 +97,7 @@ graph TB
 ```mermaid
 graph TB
   Client["浏览器访问"] --> Server["cloudctf.service"]
-  Server --> DB["SQLite / MySQL"]
+  Server --> DB["SQLite / MySQL / PostgreSQL"]
   Server --> Files["/opt/cloudctf/data"]
   Server --> Docker["Docker Engine"]
 ```

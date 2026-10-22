@@ -26,7 +26,7 @@
 
 ## 为什么选择 CloudCTF
 
-CloudCTF 将选手门户、管理后台、竞赛服务与靶场管理整合在一个可私有化部署的平台中。默认使用 SQLite，下载单个二进制即可运行；生产环境可切换 MySQL，并接入本机或远程 Docker 主机。
+CloudCTF 将选手门户、管理后台、竞赛服务与靶场管理整合在一个可私有化部署的平台中。默认使用内置 SQLite，下载单个二进制即可运行；生产环境可切换 MySQL 或 PostgreSQL，并接入本机或远程 Docker 主机。
 
 <table>
   <tr>
@@ -44,7 +44,7 @@ CloudCTF 将选手门户、管理后台、竞赛服务与靶场管理整合在�
 ### 核心优势
 
 - **一体化交付**：React 前端内嵌进 Go 服务，单二进制即可同时提供选手端和管理端。
-- **灵活部署**：支持 Linux AMD64 / ARM64、Docker、SQLite 和 MySQL。
+- **灵活部署**：支持 Linux AMD64 / ARM64、Docker、SQLite、MySQL 和 PostgreSQL。
 - **完整靶场能力**：管理 Docker 主机、镜像、模板、容器组和运行时生命周期。
 - **安全运维**：内置备份、审计、管理员密码恢复，以及基于 GitHub Release 的手动在线更新。
 - **开放扩展**：清晰的 API、模块化前后端与完整文档，适合二次开发和私有化定制。
@@ -110,6 +110,31 @@ docker run -d --name cloudctf --restart unless-stopped \
 
 > Docker Socket 等同于较高的宿主机权限。生产环境应隔离靶场节点，并限制挂载、网络和镜像来源。
 
+### 数据库配置
+
+CloudCTF 只需通过 `DATABASE_URI` 即可切换数据库。未配置时自动使用内置 SQLite，并在 `data/cloudctf.db` 创建数据库文件；首次连接空数据库时会自动建表和初始化基础数据。
+
+| 数据库 | `DATABASE_URI` 示例 | 适用场景 |
+| --- | --- | --- |
+| SQLite（默认） | `sqlite://data/cloudctf.db` | 单机部署、快速体验、小规模使用 |
+| MySQL | `mysql://cloudctf:strong-password@tcp(mysql:3306)/cloudctf?charset=utf8mb4&parseTime=True&loc=Local` | 已有 MySQL 基础设施的生产部署 |
+| PostgreSQL | `postgres://cloudctf:strong-password@postgres:5432/cloudctf?sslmode=disable` | 使用 PostgreSQL 的生产部署 |
+
+二进制或源码运行时：
+
+```bash
+export DATABASE_URI='postgres://cloudctf:strong-password@127.0.0.1:5432/cloudctf?sslmode=disable'
+./cloudctf-linux-amd64
+```
+
+Docker 使用外部数据库时，在原有命令中增加：
+
+```bash
+-e DATABASE_URI='mysql://cloudctf:strong-password@tcp(mysql:3306)/cloudctf?charset=utf8mb4&parseTime=True&loc=Local'
+```
+
+> 数据库必须提前创建，连接账号需要建表、修改表、创建索引和读写数据的权限。容器内的 `localhost` 指向容器自身，请填写数据库容器服务名或可访问的主机地址。远程 PostgreSQL 生产环境建议按服务端要求配置 `sslmode=require` 或证书参数。修改连接串不会自动迁移旧数据库中的数据，切换前请先完成备份与迁移验证。
+
 ### 从源码运行
 
 开发环境需要 **Go 1.26+**、**Node.js 22.12+** 和 npm；动态靶机与完整集成测试还需要 Docker。
@@ -133,14 +158,14 @@ CloudCTF 从环境变量读取配置，也支持通过 `CONFIG_FILE` 指定 `.en
 | `HOST` | `0.0.0.0` | HTTP 监听地址 |
 | `PORT` | `8005` | HTTP 监听端口 |
 | `APP_ENV` | `development` | 设为 `production` 启用生产安全检查 |
-| `DATABASE_URI` | `sqlite://data/cloudctf.db` | SQLite 或 MySQL 数据库连接 |
+| `DATABASE_URI` | `sqlite://data/cloudctf.db` | SQLite、MySQL 或 PostgreSQL 数据库连接 |
 | `JWT_SECRET` | `change-me` | JWT 密钥；生产环境必须修改 |
 | `FIRST_SUPERUSER_USERNAME` | `admin` | 首次创建的超级管理员用户名 |
 | `FIRST_SUPERUSER_PASSWORD` | 空 | 生产环境要求至少 12 位 |
 | `ALLOWED_ORIGINS` | `*` | 允许的跨域来源；生产环境必须显式配置 |
 | `UPDATE_ENABLED` | `true` | 是否启用管理端在线更新入口 |
 
-完整配置、MySQL、systemd 和反向代理示例参见[生产部署文档](https://hexbay.github.io/CloudCTF/guide/production-deploy)。
+完整配置、外部数据库、systemd 和反向代理示例参见[生产部署文档](https://hexbay.github.io/CloudCTF/guide/production-deploy)。
 
 ## 运维速查
 

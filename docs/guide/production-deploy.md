@@ -51,6 +51,9 @@ UPDATE_REPOSITORY=hexbay/CloudCTF
 # 数据库：默认 SQLite
 DATABASE_URI=sqlite://./cloudctf.db
 
+# Redis URI：redis://[:密码]@主机:端口/库编号
+REDIS_ADDR=redis://:strong-password@127.0.0.1:6379/0
+
 # 上传与备份
 UPLOAD_DIR=./uploads
 BACKUP_DIR=./backups

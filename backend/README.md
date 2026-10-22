@@ -110,7 +110,7 @@ cp .env.example data/.env
 | `LOG_LEVEL` | 日志级别（debug/info/warn/error） | `info` |
 | `LOG_FILE` | 日志文件路径 | `logs/backend.log` |
 | `DATABASE_URI` | 数据库连接（`sqlite://...`、`mysql://...`、`postgres://...` 或 `postgresql://...`） | `sqlite://data/cloudctf.db` |
-| `REDIS_ADDR` | Redis 地址 | `localhost:6379` |
+| `REDIS_ADDR` | Redis URI，格式为 `redis://[:密码]@主机:端口/库编号` | `redis://localhost:6379/0` |
 | `FIRST_SUPERUSER_USERNAME` | 首次创建管理员时使用的用户名 | `admin` |
 | `JWT_SECRET` | JWT 签名密钥；首次运行时自动生成并持久化 | 自动生成 |
 | `UPLOAD_DIR` | 上传文件目录 | `static/uploads` |

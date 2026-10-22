@@ -54,7 +54,7 @@ func Load() Config {
 		LogLevel:               envLogLevel("LOG_LEVEL", slog.LevelInfo),
 		LogFile:                env("LOG_FILE", "logs/backend.log"),
 		DatabaseURI:            env("DATABASE_URI", "sqlite://data/cloudctf.db"),
-		RedisAddr:              env("REDIS_ADDR", "localhost:6379"),
+		RedisAddr:              env("REDIS_ADDR", "redis://localhost:6379/0"),
 		JWTSecret:              env("JWT_SECRET", "change-me"),
 		FirstSuperuserUsername: env("FIRST_SUPERUSER_USERNAME", "admin"),
 		FirstSuperuserPassword: env("FIRST_SUPERUSER_PASSWORD", ""),
@@ -84,7 +84,7 @@ PORT=8005
 LOG_LEVEL=info
 LOG_FILE=logs/backend.log
 DATABASE_URI=sqlite://data/cloudctf.db
-REDIS_ADDR=localhost:6379
+REDIS_ADDR=redis://localhost:6379/0
 JWT_SECRET=
 FIRST_SUPERUSER_USERNAME=admin
 FIRST_SUPERUSER_PASSWORD=
@@ -133,6 +133,9 @@ func ensureEnvFile() {
 	}
 	contents := replaceEnvValue(string(template), "JWT_SECRET", jwtSecret)
 	contents = replaceEnvValue(contents, "FIRST_SUPERUSER_PASSWORD", adminPassword)
+	if appEnv := strings.TrimSpace(os.Getenv("APP_ENV")); appEnv != "" {
+		contents = replaceEnvValue(contents, "APP_ENV", appEnv)
+	}
 
 	dir := filepath.Dir(path)
 	if dir != "." {

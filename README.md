@@ -101,11 +101,10 @@ docker run -d --name cloudctf --restart unless-stopped \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/data:/app/data" \
   -v "$PWD/static:/app/static" \
-  -e APP_ENV=production \
   peach0214/cloud_ctf:latest
 ```
 
-首次启动发现 `data/.env` 不存在时，会自动复制 `.env.example` 创建配置文件，并将 JWT 密钥和初始管理员密码替换为安全随机值。首次登录前运行 `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env` 查看密码；请妥善保管该文件，并在重建容器时继续挂载相同的 `data/` 目录。同源访问无需设置 `ALLOWED_ORIGINS`。
+官方 Docker 镜像默认使用 `APP_ENV=production`。首次启动发现 `data/.env` 不存在时，会自动复制 `.env.example` 创建配置文件，写入生产环境模式，并将 JWT 密钥和初始管理员密码替换为安全随机值。首次登录前运行 `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env` 查看密码；请妥善保管该文件，并在重建容器时继续挂载相同的 `data/` 目录。同源访问无需设置 `ALLOWED_ORIGINS`。
 
 > Docker Socket 等同于较高的宿主机权限。生产环境应隔离靶场节点，并限制挂载、网络和镜像来源。
 
@@ -162,8 +161,9 @@ CloudCTF 从环境变量读取配置，也支持通过 `CONFIG_FILE` 指定 `.en
 | --- | --- | --- |
 | `HOST` | `0.0.0.0` | HTTP 监听地址 |
 | `PORT` | `8005` | HTTP 监听端口 |
-| `APP_ENV` | `development` | 设为 `production` 启用生产安全检查 |
+| `APP_ENV` | 源码 `development`；Docker `production` | 运行环境与安全检查模式 |
 | `DATABASE_URI` | `sqlite://data/cloudctf.db` | SQLite、MySQL 或 PostgreSQL 数据库连接 |
+| `REDIS_ADDR` | `redis://localhost:6379/0` | Redis URI；可在 URI 中包含密码和库编号 |
 | `JWT_SECRET` | 自动生成 | 首次运行时写入 `data/.env` 的随机 JWT 密钥 |
 | `FIRST_SUPERUSER_USERNAME` | `admin` | 首次创建的超级管理员用户名 |
 | `FIRST_SUPERUSER_PASSWORD` | 自动生成 | 首次运行时写入 `data/.env`，用于首次登录 |

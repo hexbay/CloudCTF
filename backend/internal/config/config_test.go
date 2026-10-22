@@ -47,6 +47,9 @@ func TestLoadGeneratesAndPersistsProductionSecrets(t *testing.T) {
 	if strings.Contains(string(contents), "change-me") {
 		t.Fatal("generated config retained a placeholder secret")
 	}
+	if !strings.Contains(string(contents), "APP_ENV=production") {
+		t.Fatal("generated config did not persist the effective APP_ENV")
+	}
 
 	// Loading again must reuse durable values instead of rotating credentials.
 	_ = os.Unsetenv("JWT_SECRET")

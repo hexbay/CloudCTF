@@ -28,11 +28,10 @@ docker run -d \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/data:/app/data" \
   -v "$PWD/static:/app/static" \
-  -e APP_ENV=production \
   peach0214/cloud_ctf:latest
 ```
 
-首次启动发现 `data/.env` 不存在时，CloudCTF 会复制镜像内的 `.env.example` 创建配置文件，并将 JWT 密钥和初始管理员密码替换为安全随机值（文件权限为仅当前用户可读写）。管理员用户名默认为 `admin`。第一次登录前查看生成的密码：
+官方镜像默认使用 `APP_ENV=production`，不需要额外传入。首次启动发现 `data/.env` 不存在时，CloudCTF 会复制镜像内的 `.env.example` 创建配置文件，写入生产环境模式，并将 JWT 密钥和初始管理员密码替换为安全随机值（文件权限为仅当前用户可读写）。管理员用户名默认为 `admin`。第一次登录前查看生成的密码：
 
 ```bash
 grep '^FIRST_SUPERUSER_PASSWORD=' data/.env
@@ -59,6 +58,16 @@ PostgreSQL：
 ```
 
 将对应选项加到上面的完整 `docker run` 命令中即可。将 `mysql` / `postgres` 替换成容器可访问的数据库主机名或 IP；若数据库也运行在 Docker 中，需要让两个容器加入同一个 Docker 网络。不要在应用容器里使用 `localhost` 连接另一个容器。数据库账号需要创建/修改表、创建索引以及读写数据的权限。远程 PostgreSQL 请按服务端要求配置 TLS。切换数据库不会自动搬迁原数据库中的数据，迁移前请先备份并单独完成数据导入验证。
+
+## 配置 Redis
+
+Redis 使用一个 URI 同时配置地址、密码和逻辑数据库编号：
+
+```bash
+-e REDIS_ADDR='redis://:strong-password@redis:6379/0'
+```
+
+格式为 `redis://[:密码]@主机:端口/库编号`。无密码时可使用 `redis://redis:6379/0`。如果 Redis 运行在另一个容器中，请让两个容器加入同一个 Docker 网络，并将 `redis` 替换成 Redis 容器名或网络别名；不要填写 `localhost`。
 
 启动后访问：
 

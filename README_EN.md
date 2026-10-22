@@ -101,11 +101,10 @@ docker run -d --name cloudctf --restart unless-stopped \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$PWD/data:/app/data" \
   -v "$PWD/static:/app/static" \
-  -e APP_ENV=production \
   peach0214/cloud_ctf:latest
 ```
 
-On first startup, if `data/.env` does not exist, CloudCTF copies `.env.example` to create it and replaces the JWT signing key and initial admin password with secure random values. Before the first login, read the password with `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env`. Keep this file private and reuse the same `data/` volume when recreating the container. `ALLOWED_ORIGINS` is not needed for same-origin access.
+The official Docker image defaults to `APP_ENV=production`. On first startup, if `data/.env` does not exist, CloudCTF copies `.env.example`, records production mode, and replaces the JWT signing key and initial admin password with secure random values. Before the first login, read the password with `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env`. Keep this file private and reuse the same `data/` volume when recreating the container. `ALLOWED_ORIGINS` is not needed for same-origin access.
 
 > Access to the Docker socket is equivalent to elevated host privileges. Isolate range nodes in production and restrict mounts, networking, and image sources.
 
@@ -162,8 +161,9 @@ CloudCTF reads configuration from environment variables and can also load a `.en
 | --- | --- | --- |
 | `HOST` | `0.0.0.0` | HTTP bind address |
 | `PORT` | `8005` | HTTP port |
-| `APP_ENV` | `development` | Use `production` to enable production safety checks |
+| `APP_ENV` | source: `development`; Docker: `production` | Runtime environment and safety mode |
 | `DATABASE_URI` | `sqlite://data/cloudctf.db` | SQLite, MySQL, or PostgreSQL connection |
+| `REDIS_ADDR` | `redis://localhost:6379/0` | Redis URI; may include password and database number |
 | `JWT_SECRET` | generated | Random JWT secret written to `data/.env` on first startup |
 | `FIRST_SUPERUSER_USERNAME` | `admin` | Initial super administrator username |
 | `FIRST_SUPERUSER_PASSWORD` | generated | Written to `data/.env` for the first admin login |

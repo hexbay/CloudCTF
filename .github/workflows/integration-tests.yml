@@ -83,6 +83,8 @@ jobs:
       UPLOAD_DIR: ${{ github.workspace }}/backend/static/uploads
       BACKUP_DIR: ${{ github.workspace }}/backend/data/backups
       FRONTEND_DIR: ${{ github.workspace }}/frontend/dist
+      FIRST_SUPERUSER_USERNAME: admin
+      FIRST_SUPERUSER_PASSWORD: admin123456
       CLOUDFLAG_BASE_URL: http://127.0.0.1:8005
       CLOUDFLAG_ADMIN_USERNAME: admin
       CLOUDFLAG_ADMIN_PASSWORD: admin123456

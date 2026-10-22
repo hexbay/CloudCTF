@@ -219,6 +219,27 @@ ALLOWED_ORIGINS=http://ctf.example.com
 
 只有超级管理员可以执行更新。公共仓库无需 GitHub Token；如果遇到 API 限额，可以在环境文件中设置 `UPDATE_GITHUB_TOKEN`，然后重启服务。
 
+如果服务器访问 GitHub 需要代理，可在环境文件中配置统一网络代理。资源仓库的 Git clone/fetch 和在线更新 API/安装包下载都会使用该代理：
+
+```bash
+PROXY=http://127.0.0.1:10808
+```
+
+也支持 SOCKS5：
+
+```bash
+PROXY=socks5://127.0.0.1:10808
+```
+
+应用运行后，资源仓库同步和管理端在线更新都会自动读取该配置。修改 `PROXY` 后需要重启 CloudCTF 服务。
+
+如果需要在启动 CloudCTF 之前手动 clone 仓库，`.env` 还没有被应用加载，需要把同一代理显式传给 Git：
+
+```bash
+export PROXY=socks5://127.0.0.1:10808
+git -c http.proxy="$PROXY" clone https://github.com/hexbay/CloudCTF.git
+```
+
 运行服务的用户必须对二进制所在目录具有写权限，否则检查功能仍可使用，但安装会被拒绝。
 
 如需关闭入口：

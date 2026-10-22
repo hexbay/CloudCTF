@@ -122,6 +122,9 @@ cp .env.example data/.env
 | `FIRST_SUPERUSER_PASSWORD` | 首次创建管理员时使用的密码；首次运行时自动生成并持久化 | 自动生成 |
 | `CONFIG_FILE` | 配置文件路径 | `data/.env` |
 | `UPDATE_DIR` | 容器在线更新版本与回退状态目录 | `data/updates` |
+| `PROXY` | Git 资源仓库同步和在线更新共用的 HTTP/SOCKS5 代理 | 空（不启用） |
+
+`PROXY` 可填写 `http://127.0.0.1:10808` 或 `socks5://127.0.0.1:10808`。修改后需要重启服务；应用启动前手动执行 Git clone 时，需要自行把该地址传给 `git -c http.proxy=...`。
 
 首次运行时，程序会自动生成安全随机值并保存到 `data/.env`。确保该目录持久化，管理员用户名默认为 `admin`，首次登录密码可通过 `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env` 查看。跨域部署时才需要配置 `ALLOWED_ORIGINS`；直接通过同一服务地址访问时无需配置。
 

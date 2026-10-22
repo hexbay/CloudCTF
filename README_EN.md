@@ -170,6 +170,7 @@ CloudCTF reads configuration from environment variables and can also load a `.en
 | `ALLOWED_ORIGINS` | empty | Configure only when the frontend uses a different origin |
 | `UPDATE_ENABLED` | `true` | Enables the online update entry in the admin console |
 | `UPDATE_DIR` | `data/updates` | Persistent container updates and rollback state |
+| `PROXY` | empty | Shared HTTP/SOCKS5 proxy for Git repository sync and online updates |
 
 See the [production deployment guide](https://hexbay.github.io/CloudCTF/guide/production-deploy) for complete configuration, external database, systemd, and optional Nginx reverse proxy examples. Nginx is not required; the service can be accessed directly at `http://<server-ip>:8005`.
 

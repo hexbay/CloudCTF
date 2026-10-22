@@ -1,4 +1,11 @@
-import { DeleteOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SyncOutlined,
+} from "@ant-design/icons";
 import {
   Button,
   Descriptions,
@@ -193,7 +200,16 @@ export function ResourceRepositoriesModal({
               dataIndex: "repo_type",
               width: 80,
               render: (value) => (
-                <Tag>
+                <Tag
+                  color={
+                    value === "ctf"
+                      ? "blue"
+                      : value === "vul"
+                        ? "volcano"
+                        : undefined
+                  }
+                  className="template-meta-tag"
+                >
                   {value === "ctf"
                     ? "CTF"
                     : value === "vul"
@@ -245,12 +261,16 @@ export function ResourceRepositoriesModal({
             {
               title: "操作",
               key: "actions",
-              width: 240,
+              width: 150,
               render: (_, row) => (
                 <Space size={4}>
-                  <Button size="small" onClick={() => openEdit(row)}>
-                    编辑
-                  </Button>
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    aria-label="编辑资源仓库"
+                    title="编辑资源仓库"
+                    onClick={() => openEdit(row)}
+                  />
                   <Button
                     size="small"
                     icon={<EyeOutlined />}
@@ -259,10 +279,11 @@ export function ResourceRepositoriesModal({
                   <Button
                     size="small"
                     loading={syncingId === String(row.id)}
+                    icon={<SyncOutlined />}
+                    aria-label="重同步资源仓库"
+                    title="重同步资源仓库"
                     onClick={() => void sync(row)}
-                  >
-                    重同步
-                  </Button>
+                  />
                   <Button
                     size="small"
                     danger

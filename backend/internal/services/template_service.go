@@ -293,12 +293,36 @@ func buildTemplateRecord(
 		LastSyncAt:    now,
 		RepositoryUrl: repo.RepositoryURL,
 		Status:        "pending",
-		Tags:          mergeStringLists(repo.TagList(), template.Tags),
+		Tags:          templateTagsForRepo(repo, template.Tags),
 		UpdatedAt:     now,
 		Ports:         uniqueStrings(template.Ports),
 		Services:      template.Services,
 	}
 	return record, nil
+}
+
+func templateTagsForRepo(repo models.ResourceRepo, templateTags []string) []string {
+	var repoTypeTag string
+	switch strings.ToLower(strings.TrimSpace(repo.RepoType)) {
+	case "ctf":
+		repoTypeTag = "ctf"
+	case "vul", "vuln", "vulnerability":
+		repoTypeTag = "vul"
+	}
+
+	tags := make([]string, 0, len(repo.TagList())+len(templateTags)+1)
+	for _, tag := range mergeStringLists(repo.TagList(), templateTags) {
+		switch strings.ToLower(strings.TrimSpace(tag)) {
+		case "ctf", "vul", "vuln", "vulnerability":
+			continue
+		default:
+			tags = append(tags, tag)
+		}
+	}
+	if repoTypeTag != "" {
+		tags = append(tags, repoTypeTag)
+	}
+	return tags
 }
 
 func templateLaunchServices(template models.Templates, resolveComposeImage func(string) string) []models.TemplateService {

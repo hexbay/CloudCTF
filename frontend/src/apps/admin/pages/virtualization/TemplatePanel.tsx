@@ -1,7 +1,9 @@
 import {
+  BuildOutlined,
   CodeOutlined,
   DeleteOutlined,
   EditOutlined,
+  PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
 } from "@ant-design/icons";
@@ -454,22 +456,25 @@ export function TemplatePanel() {
       {
         title: "操作",
         key: "actions",
-        width: 220,
+        width: 150,
         render: (_, row) => (
-          <Space size={4} wrap>
+          <Space size={4}>
             <Button
               size="small"
               icon={<EditOutlined />}
+              aria-label="编辑模板"
+              title="编辑模板"
               onClick={(e) => {
                 e.stopPropagation();
                 openEdit(row);
               }}
-            >
-              编辑
-            </Button>
+            />
             <Button
               size="small"
               loading={isStartingTemplate(row)}
+              icon={<PlayCircleOutlined />}
+              aria-label="启动模板"
+              title="启动模板"
               onClick={(e) => {
                 e.stopPropagation();
                 void startTemplate(row);
@@ -478,22 +483,23 @@ export function TemplatePanel() {
                 String(row.status ?? "") !== "completed" &&
                 String(row.status ?? "") !== "ready"
               }
-            >
-              启动
-            </Button>
+            />
             <Button
               size="small"
+              icon={<BuildOutlined />}
+              aria-label="构建模板"
+              title="构建模板"
               onClick={(e) => {
                 e.stopPropagation();
                 void runTemplateAction(row, "build");
               }}
-            >
-              构建
-            </Button>
+            />
             <Button
               size="small"
               danger
               icon={<DeleteOutlined />}
+              aria-label="删除模板"
+              title="删除模板"
               onClick={(e) => {
                 e.stopPropagation();
                 remove(row);

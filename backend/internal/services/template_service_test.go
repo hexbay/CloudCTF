@@ -127,6 +127,47 @@ func TestSyncResourceRepositoryWithCtfdbWeb2F12(t *testing.T) {
 	}
 }
 
+func TestTemplateTagsFollowRepoType(t *testing.T) {
+	tests := []struct {
+		name         string
+		repoType     string
+		repoTags     string
+		templateTags []string
+		wantTags     []string
+		unwantedTag  string
+	}{
+		{
+			name:         "vulnerability repo replaces stale ctf classification",
+			repoType:     "vul",
+			repoTags:     `["ctfdb"]`,
+			templateTags: []string{"CVE-2026-0001", "ctfdb", "ctf"},
+			wantTags:     []string{"ctfdb", "CVE-2026-0001", "vul"},
+			unwantedTag:  "ctf",
+		},
+		{
+			name:         "ctf repo replaces stale vulnerability classification",
+			repoType:     "ctf",
+			repoTags:     `["ctfdb", "vul"]`,
+			templateTags: []string{"ctfdb", "ctf", "vuln"},
+			wantTags:     []string{"ctfdb", "ctf"},
+			unwantedTag:  "vul",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := models.ResourceRepo{RepoType: tt.repoType, Tags: tt.repoTags}
+			got := templateTagsForRepo(repo, tt.templateTags)
+			if strings.Join(got, ",") != strings.Join(tt.wantTags, ",") {
+				t.Fatalf("tags = %#v, want %#v", got, tt.wantTags)
+			}
+			if set := normalizedTagSet(got); set[tt.unwantedTag] {
+				t.Fatalf("tags = %#v, must not contain %q", got, tt.unwantedTag)
+			}
+		})
+	}
+}
+
 func TestRunGitReportsCommandStartFailure(t *testing.T) {
 	t.Setenv("PATH", "")
 

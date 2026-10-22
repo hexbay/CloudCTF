@@ -368,7 +368,7 @@ type DockerContainerCreateOptions struct {
 	Labels      map[string]string
 }
 
-func ListDockerContainers(ctx context.Context, endpoint string, hostID uint, hostName string, dockerFilters filters.Args) ([]map[string]any, error) {
+func ListDockerContainers(ctx context.Context, endpoint string, hostID uint, hostName, hostOutIP string, dockerFilters filters.Args) ([]map[string]any, error) {
 	cli, err := DockerClientForEndpoint(endpoint)
 	if err != nil {
 		return nil, err
@@ -398,6 +398,7 @@ func ListDockerContainers(ctx context.Context, endpoint string, hostID uint, hos
 		rows = append(rows, map[string]any{
 			"host_id":      hostID,
 			"host_name":    hostName,
+			"out_ip":       hostOutIP,
 			"id":           item.ID,
 			"container_id": item.ID,
 			"name":         name,
@@ -405,6 +406,7 @@ func ListDockerContainers(ctx context.Context, endpoint string, hostID uint, hos
 			"status":       item.State,
 			"state":        item.State,
 			"created":      fmt.Sprint(item.Created),
+			"created_at":   item.Created,
 			"ports":        ports,
 			"command":      item.Command,
 			"labels":       item.Labels,
@@ -509,6 +511,7 @@ func CreateDockerContainerWithOptions(
 		"status":       inspect.State.Status,
 		"state":        inspect.State.Status,
 		"created":      inspect.Created,
+		"created_at":   inspect.Created,
 		"ports":        ports,
 		"command":      strings.Join(inspect.Config.Cmd, " "),
 		"labels":       inspect.Config.Labels,
@@ -529,7 +532,7 @@ func ValidateDockerImageReference(image string) error {
 	return nil
 }
 
-func InspectDockerContainer(ctx context.Context, endpoint, containerID string, hostID uint, hostName string) (map[string]any, error) {
+func InspectDockerContainer(ctx context.Context, endpoint, containerID string, hostID uint, hostName, hostOutIP string) (map[string]any, error) {
 	cli, err := DockerClientForEndpoint(endpoint)
 	if err != nil {
 		return nil, err
@@ -552,6 +555,7 @@ func InspectDockerContainer(ctx context.Context, endpoint, containerID string, h
 	return map[string]any{
 		"host_id":      hostID,
 		"host_name":    hostName,
+		"out_ip":       hostOutIP,
 		"id":           inspect.ID,
 		"container_id": inspect.ID,
 		"name":         strings.TrimPrefix(inspect.Name, "/"),
@@ -559,6 +563,7 @@ func InspectDockerContainer(ctx context.Context, endpoint, containerID string, h
 		"status":       inspect.State.Status,
 		"state":        inspect.State.Status,
 		"created":      inspect.Created,
+		"created_at":   inspect.Created,
 		"ports":        ports,
 		"command":      strings.Join(inspect.Config.Cmd, " "),
 		"labels":       inspect.Config.Labels,

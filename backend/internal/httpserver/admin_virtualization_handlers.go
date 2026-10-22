@@ -509,6 +509,7 @@ func (srv *Server) adminVirtualizationContainersHandler(w http.ResponseWriter, r
 			host.Endpoint,
 			host.ID,
 			host.Name,
+			host.OutIP,
 			services.MapToDockerFilters("label", srv.managedContainerFilter()),
 		)
 		cancel()
@@ -594,6 +595,7 @@ func (srv *Server) adminVirtualizationContainerCreateHandler(w http.ResponseWrit
 	}
 	row["host_id"] = host.ID
 	row["host_name"] = host.Name
+	row["out_ip"] = host.OutIP
 	response.JSON(w, http.StatusOK, row)
 }
 
@@ -743,12 +745,12 @@ func (srv *Server) inspectDockerContainerAcrossHosts(ctx context.Context, contai
 	}
 	timeoutCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	return services.InspectDockerContainer(timeoutCtx, host.Endpoint, containerID, host.ID, host.Name)
+	return services.InspectDockerContainer(timeoutCtx, host.Endpoint, containerID, host.ID, host.Name, host.OutIP)
 }
 
 func (srv *Server) resolveDockerHostByContainerID(ctx context.Context, containerID string) (*virtualizationHostModel, error) {
 	return srv.getVirtualizationHostService().ResolveDockerHostByContainerID(ctx, containerID, func(timeoutCtx context.Context, host virtualizationHostModel, resolvedContainerID string) error {
-		_, err := services.InspectDockerContainer(timeoutCtx, host.Endpoint, resolvedContainerID, host.ID, host.Name)
+		_, err := services.InspectDockerContainer(timeoutCtx, host.Endpoint, resolvedContainerID, host.ID, host.Name, host.OutIP)
 		return err
 	})
 }

@@ -108,6 +108,20 @@ export function renderValue(value: unknown, key?: string) {
   return str;
 }
 
+export function containerStatusLabel(value: unknown) {
+  const status = String(value ?? "").trim().toLowerCase();
+  return statusMeta[status]?.label ?? (status || "-");
+}
+
+export function renderContainerStatus(value: unknown) {
+  const status = String(value ?? "").trim().toLowerCase();
+  return (
+    <Tag color={statusMeta[status]?.color ?? "default"}>
+      {containerStatusLabel(status)}
+    </Tag>
+  );
+}
+
 export function renderHostIcon(host: RowData) {
   const resources = host.resources ?? {};
   const osType = String(resources.os_type ?? "").toLowerCase();

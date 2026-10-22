@@ -7,8 +7,10 @@ import {
   StopOutlined,
 } from "@ant-design/icons";
 import {
+  App,
   Button,
   Card,
+  Descriptions,
   Form,
   Input,
   Modal,
@@ -23,16 +25,19 @@ import type { ColumnsType } from "antd/es/table";
 import { useEffect, useState } from "react";
 import { adminApi } from "@shared/api/admin";
 import { ContainerGroupStatus, statusColor } from "./constants";
-import { DetailModal } from "./SharedPanels";
 import type { PageState, RowData } from "./types";
 import {
+  formatDateTime,
   normalizePage,
   portEntries,
+  renderContainerStatus,
+  renderPortList,
   renderPortSummary,
   renderValue,
 } from "./utils";
 
 export function ContainerPanel() {
+  const { message: messageApi } = App.useApp();
   const [detail, setDetail] = useState<RowData | null>(null);
   const [rows, setRows] = useState<RowData[]>([]);
   const [total, setTotal] = useState(0);
@@ -44,6 +49,7 @@ export function ContainerPanel() {
   const [form] = Form.useForm();
   const [modal, contextHolder] = Modal.useModal();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actingKey, setActingKey] = useState<string | null>(null);
 
   useEffect(() => {
     void load();
@@ -64,7 +70,9 @@ export function ContainerPanel() {
       setRows(normalized.rows);
       setTotal(normalized.total);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "加载容器失败");
+      messageApi.error(
+        error instanceof Error ? error.message : "加载容器失败",
+      );
     } finally {
       setLoading(false);
     }
@@ -89,15 +97,17 @@ export function ContainerPanel() {
           `/api-admin/virtualization/containers/${editing.id}`,
           values,
         );
-        message.success("容器已更新");
+        messageApi.success("容器已更新");
       } else {
         await adminApi.create("/api-admin/virtualization/containers", values);
-        message.success("容器已创建");
+        messageApi.success("容器已创建");
       }
       setEditing(null);
       await load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "保存容器失败");
+      messageApi.error(
+        error instanceof Error ? error.message : "保存容器失败",
+      );
     } finally {
       setSaving(false);
     }
@@ -107,10 +117,12 @@ export function ContainerPanel() {
     setDeletingId(String(row.id));
     try {
       await adminApi.remove(`/api-admin/virtualization/containers/${row.id}`);
-      message.success("容器已删除");
+      messageApi.success("容器已删除");
       await load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "删除容器失败");
+      messageApi.error(
+        error instanceof Error ? error.message : "删除容器失败",
+      );
       throw error;
     } finally {
       setDeletingId(null);
@@ -127,6 +139,8 @@ export function ContainerPanel() {
   }
 
   async function runAction(row: RowData, action: "start" | "stop" | "restart") {
+    const key = `${String(row.id)}:${action}`;
+    setActingKey(key);
     try {
       await adminApi.action(
         "/api-admin/virtualization/containers/action",
@@ -137,7 +151,7 @@ export function ContainerPanel() {
           action,
         },
       );
-      message.success(
+      messageApi.success(
         action === "start"
           ? "容器已启动"
           : action === "stop"
@@ -146,7 +160,11 @@ export function ContainerPanel() {
       );
       await load();
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "容器操作失败");
+      messageApi.error(
+        error instanceof Error ? error.message : "容器操作失败",
+      );
+    } finally {
+      setActingKey(null);
     }
   }
 
@@ -175,15 +193,22 @@ export function ContainerPanel() {
       title: "状态",
       dataIndex: "status",
       width: 120,
-      render: (value) => (
-        <Tag color={statusColor[String(value)]}>{String(value ?? "-")}</Tag>
-      ),
+      render: (value) => renderContainerStatus(value),
     },
     {
-      title: "主机 ID",
-      dataIndex: "host_id",
-      width: 100,
-      render: (value) => String(value ?? "-"),
+      title: "主机",
+      key: "host",
+      width: 180,
+      render: (_, row) => (
+        <Space direction="vertical" size={2}>
+          <Typography.Text>
+            {String(row.host_name ?? row.host_id ?? "-")}
+          </Typography.Text>
+          <Typography.Text type="secondary">
+            出口 IP: {String(row.out_ip || "-")}
+          </Typography.Text>
+        </Space>
+      ),
     },
     {
       title: "端口映射",
@@ -195,12 +220,12 @@ export function ContainerPanel() {
       title: "创建时间",
       dataIndex: "created_at",
       width: 180,
-      render: (value) => renderValue(value),
+      render: (value, row) => formatDateTime(value ?? row.created),
     },
     {
       title: "操作",
       key: "actions",
-      width: 260,
+      width: 380,
       fixed: "right",
       render: (_, row) => (
         <Space wrap>
@@ -208,10 +233,18 @@ export function ContainerPanel() {
             size="small"
             icon={<EyeOutlined />}
             onClick={() => setDetail(row)}
-          />
+          >
+            详情
+          </Button>
           <Button
             size="small"
             icon={<PlayCircleOutlined />}
+            loading={actingKey === `${String(row.id)}:start`}
+            disabled={
+              String(row.status).toLowerCase() === "running" ||
+              (actingKey !== null &&
+                actingKey !== `${String(row.id)}:start`)
+            }
             onClick={() => void runAction(row, "start")}
           >
             启动
@@ -220,6 +253,12 @@ export function ContainerPanel() {
             size="small"
             danger
             icon={<StopOutlined />}
+            loading={actingKey === `${String(row.id)}:stop`}
+            disabled={
+              String(row.status).toLowerCase() === "stopped" ||
+              (actingKey !== null &&
+                actingKey !== `${String(row.id)}:stop`)
+            }
             onClick={() => void runAction(row, "stop")}
           >
             停止
@@ -227,6 +266,10 @@ export function ContainerPanel() {
           <Button
             size="small"
             icon={<PauseCircleOutlined />}
+            loading={actingKey === `${String(row.id)}:restart`}
+            disabled={
+              actingKey !== null && actingKey !== `${String(row.id)}:restart`
+            }
             onClick={() => void runAction(row, "restart")}
           >
             重启
@@ -235,8 +278,11 @@ export function ContainerPanel() {
             size="small"
             danger
             icon={<DeleteOutlined />}
+            loading={deletingId === String(row.id)}
             onClick={() => remove(row)}
-          />
+          >
+            删除
+          </Button>
         </Space>
       ),
     },
@@ -321,12 +367,67 @@ export function ContainerPanel() {
           </Form.Item>
         </Form>
       </Modal>
-      <DetailModal
-        title="容器详情"
+      <ContainerDetailModal
         record={detail}
         onClose={() => setDetail(null)}
       />
     </Card>
+  );
+}
+
+function ContainerDetailModal({
+  record,
+  onClose,
+}: {
+  record: RowData | null;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      title="容器详情"
+      open={Boolean(record)}
+      footer={null}
+      onCancel={onClose}
+      width={760}
+    >
+      {record ? (
+        <Descriptions column={1} size="small" bordered>
+          <Descriptions.Item label="容器名称">
+            {String(record.name ?? "-")}
+          </Descriptions.Item>
+          <Descriptions.Item label="容器 ID">
+            <Typography.Text copyable>
+              {String(record.container_id ?? record.id ?? "-")}
+            </Typography.Text>
+          </Descriptions.Item>
+          <Descriptions.Item label="主机">
+            {String(record.host_name ?? record.host_id ?? "-")}
+          </Descriptions.Item>
+          <Descriptions.Item label="出口 IP">
+            {String(record.out_ip || "-")}
+          </Descriptions.Item>
+          <Descriptions.Item label="镜像">
+            {String(record.image ?? "-")}
+          </Descriptions.Item>
+          <Descriptions.Item label="状态">
+            {renderContainerStatus(record.status ?? record.state)}
+          </Descriptions.Item>
+          <Descriptions.Item label="端口映射">
+            {renderPortList(record.ports)}
+          </Descriptions.Item>
+          <Descriptions.Item label="启动命令">
+            {record.command ? (
+              <Typography.Text code>{String(record.command)}</Typography.Text>
+            ) : (
+              "-"
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="创建时间">
+            {formatDateTime(record.created_at ?? record.created)}
+          </Descriptions.Item>
+        </Descriptions>
+      ) : null}
+    </Modal>
   );
 }
 

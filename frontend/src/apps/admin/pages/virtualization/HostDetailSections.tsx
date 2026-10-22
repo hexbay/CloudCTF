@@ -6,8 +6,7 @@ import { Link } from "react-router-dom";
 import { adminApi } from "@shared/api/admin";
 import type { RowData, SortOrder } from "./types";
 import { CreateContainerModal, ImageBuildModal, ImagePullModal, ImageUploadModal } from "./HostModals";
-import { statusColor } from "./constants";
-import { formatBytes, formatDateTime, hostErrorText, imageDisplayName, imageShortId, normalizeRows, renderPortList, renderPortSummary, splitImageName, normalizeTimestamp } from "./utils";
+import { formatBytes, formatDateTime, hostErrorText, imageDisplayName, imageShortId, normalizeRows, renderContainerStatus, renderPortList, renderPortSummary, splitImageName, normalizeTimestamp } from "./utils";
 export function HostOverview({
   host,
   onOpenImages,
@@ -529,7 +528,13 @@ export function ContainerManagementSection({
                 "creating",
               ].map((value) => ({
                 value,
-                label: value,
+                label: {
+                  running: "运行中",
+                  stopped: "已停止",
+                  paused: "已暂停",
+                  exited: "已退出",
+                  creating: "创建中",
+                }[value],
               }))}
               style={{ width: 140 }}
             />
@@ -612,9 +617,7 @@ export function ContainerManagementSection({
               width: 120,
               render: (value, row) => (
                 <Tooltip title={row.error ? String(row.error) : undefined}>
-                  <Tag color={statusColor[String(value)]}>
-                    {String(value ?? "-")}
-                  </Tag>
+                  {renderContainerStatus(value)}
                 </Tooltip>
               ),
             },
@@ -639,9 +642,9 @@ export function ContainerManagementSection({
             {
               title: "操作",
               key: "actions",
-              width: 188,
+              width: 420,
               render: (_, row) => (
-                <Space>
+                <Space wrap>
                   <Tooltip title="查看详情">
                     <Button
                       size="small"
@@ -650,7 +653,9 @@ export function ContainerManagementSection({
                         event.stopPropagation();
                         setDetail(row);
                       }}
-                    />
+                    >
+                      详情
+                    </Button>
                   </Tooltip>
                   {String(row.status ?? "").toLowerCase() === "running" ? (
                     <>
@@ -662,7 +667,9 @@ export function ContainerManagementSection({
                             event.stopPropagation();
                             void runAction("pause", row);
                           }}
-                        />
+                        >
+                          暂停
+                        </Button>
                       </Tooltip>
                       <Tooltip title="停止">
                         <Button
@@ -673,7 +680,9 @@ export function ContainerManagementSection({
                             event.stopPropagation();
                             void runAction("stop", row);
                           }}
-                        />
+                        >
+                          停止
+                        </Button>
                       </Tooltip>
                       <Tooltip title="重启">
                         <Button
@@ -683,7 +692,9 @@ export function ContainerManagementSection({
                             event.stopPropagation();
                             void runAction("restart", row);
                           }}
-                        />
+                        >
+                          重启
+                        </Button>
                       </Tooltip>
                     </>
                   ) : String(row.status ?? "").toLowerCase() === "paused" ? (
@@ -697,7 +708,9 @@ export function ContainerManagementSection({
                             event.stopPropagation();
                             void runAction("unpause", row);
                           }}
-                        />
+                        >
+                          恢复
+                        </Button>
                       </Tooltip>
                       <Tooltip title="停止">
                         <Button
@@ -708,7 +721,9 @@ export function ContainerManagementSection({
                             event.stopPropagation();
                             void runAction("stop", row);
                           }}
-                        />
+                        >
+                          停止
+                        </Button>
                       </Tooltip>
                     </>
                   ) : (
@@ -721,7 +736,9 @@ export function ContainerManagementSection({
                           event.stopPropagation();
                           void runAction("start", row);
                         }}
-                      />
+                      >
+                        启动
+                      </Button>
                     </Tooltip>
                   )}
                   <Tooltip title="删除">
@@ -733,7 +750,9 @@ export function ContainerManagementSection({
                         event.stopPropagation();
                         void runAction("delete", row);
                       }}
-                    />
+                    >
+                      删除
+                    </Button>
                   </Tooltip>
                 </Space>
               ),
@@ -774,15 +793,16 @@ export function ContainerManagementSection({
               {String(detail.image ?? "-")}
             </Descriptions.Item>
             <Descriptions.Item label="状态">
-              <Tag color={statusColor[String(detail.status)]}>
-                {String(detail.status ?? "-")}
-              </Tag>
+              {renderContainerStatus(detail.status ?? detail.state)}
+            </Descriptions.Item>
+            <Descriptions.Item label="出口 IP">
+              {String(detail.out_ip ?? host.out_ip ?? "-")}
             </Descriptions.Item>
             <Descriptions.Item label="端口">
               {renderPortList(detail.ports)}
             </Descriptions.Item>
             <Descriptions.Item label="创建时间">
-              {formatDateTime(detail.created)}
+              {formatDateTime(detail.created_at ?? detail.created)}
             </Descriptions.Item>
             {detail.error ? (
               <Descriptions.Item label="错误">

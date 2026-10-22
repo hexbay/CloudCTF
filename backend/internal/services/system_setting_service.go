@@ -54,7 +54,7 @@ func (s *SystemSettingService) Save(payload map[string]any, defaults map[string]
 			return err
 		}
 		item := models.SystemSetting{Key: key}
-		if err := s.db.Where("key = ?", key).First(&item).Error; err != nil {
+		if err := s.db.Where(&models.SystemSetting{Key: key}).First(&item).Error; err != nil {
 			if err != gorm.ErrRecordNotFound {
 				return err
 			}

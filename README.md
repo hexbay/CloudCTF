@@ -171,7 +171,7 @@ CloudCTF 从环境变量读取配置，也支持通过 `CONFIG_FILE` 指定 `.en
 | `UPDATE_ENABLED` | `true` | 是否启用管理端在线更新入口 |
 | `UPDATE_DIR` | `data/updates` | 容器在线更新版本与回退状态的持久化目录 |
 
-完整配置、外部数据库、systemd 和反向代理示例参见[生产部署文档](https://hexbay.github.io/CloudCTF/guide/production-deploy)。
+完整配置、外部数据库、systemd 和可选的 Nginx 反向代理示例参见[生产部署文档](https://hexbay.github.io/CloudCTF/guide/production-deploy)。Nginx 不是必需组件，直接访问 `http://<服务器 IP>:8005` 即可使用。
 
 ## 运维速查
 

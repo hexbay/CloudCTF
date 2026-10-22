@@ -75,6 +75,65 @@ Redis 使用一个 URI 同时配置地址、密码和逻辑数据库编号：
 - 管理后台：`http://<服务器 IP>:8005/admin`
 - 健康检查：`http://<服务器 IP>:8005/healthz`
 
+## 可选：使用 Nginx 和域名访问
+
+> [!TIP]
+> Nginx **不是必需组件**。如果直接通过 `http://<服务器 IP>:8005` 访问，保持前面的 Docker 启动命令即可，无需安装或配置 Nginx。
+
+只有在需要使用域名、HTTPS，或希望统一通过 80/443 端口访问时，才需要配置 Nginx。此时建议将 Docker 命令中的端口映射改为仅监听本机：
+
+```bash
+-p 127.0.0.1:8005:8005
+```
+
+然后创建 `/etc/nginx/sites-available/cloudctf`：
+
+```nginx
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ctf.example.com;
+
+    # 允许上传较大的题目附件；可按需要调整
+    client_max_body_size 200m;
+
+    location / {
+        proxy_pass http://127.0.0.1:8005;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 兼容 WebSocket/长连接
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+}
+```
+
+启用并检查配置：
+
+```bash
+sudo ln -s /etc/nginx/sites-available/cloudctf /etc/nginx/sites-enabled/cloudctf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+配置完成后通过 `http://ctf.example.com` 访问。使用同一个域名代理前端和 API 时不需要设置 `ALLOWED_ORIGINS`；只有前端与 API 的协议、域名或端口不同时，才需要设置该变量。
+
+如需 HTTPS，可使用 Certbot 为上述域名自动申请并配置证书：
+
+```bash
+sudo certbot --nginx -d ctf.example.com
+```
+
+申请证书前，请确保域名已解析到服务器，并已在防火墙中放行 80 和 443 端口。将示例中的 `ctf.example.com` 替换为实际域名。
+
 ## 在线更新与镜像升级
 
 容器部署支持在管理后台手动确认在线更新。程序会在更新前自动创建数据备份，校验 GitHub Release 的 SHA256 后，将新版本保存到持久化目录 `data/updates/`。因此，只要重建容器时继续挂载同一个 `data/` 目录，即使使用原镜像，新程序版本也不会丢失。

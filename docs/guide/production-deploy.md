@@ -154,8 +154,9 @@ CloudCTF 可以直接暴露 `:8005` 端口访问，也可以放在 Nginx 后面�
 ```bash
 HOST=127.0.0.1
 PORT=8005
-ALLOWED_ORIGINS=https://ctf.example.com
 ```
+
+Docker 部署则将端口映射写成 `-p 127.0.0.1:8005:8005`，避免绕过 Nginx 直接访问应用端口。
 
 示例 Nginx 配置：
 
@@ -187,13 +188,15 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-如果使用 HTTPS，推荐通过 Certbot 或 Caddy 等工具签发证书，并把 `ALLOWED_ORIGINS` 改成最终访问地址，例如：
+如果使用 HTTPS，推荐通过 Certbot 或 Caddy 等工具签发证书。同一个域名同时代理页面和 API 时仍然属于同源访问，无需设置 `ALLOWED_ORIGINS`。
+
+只有前端与 API 位于不同来源时，才把 `ALLOWED_ORIGINS` 设置为前端的完整来源，例如：
 
 ```bash
 ALLOWED_ORIGINS=https://ctf.example.com
 ```
 
-如果暂时只通过 HTTP 域名访问，则填写：
+如果跨域前端暂时只通过 HTTP 域名访问，则填写：
 
 ```bash
 ALLOWED_ORIGINS=http://ctf.example.com

@@ -171,7 +171,7 @@ CloudCTF reads configuration from environment variables and can also load a `.en
 | `UPDATE_ENABLED` | `true` | Enables the online update entry in the admin console |
 | `UPDATE_DIR` | `data/updates` | Persistent container updates and rollback state |
 
-See the [production deployment guide](https://hexbay.github.io/CloudCTF/guide/production-deploy) for complete configuration, external database, systemd, and reverse proxy examples.
+See the [production deployment guide](https://hexbay.github.io/CloudCTF/guide/production-deploy) for complete configuration, external database, systemd, and optional Nginx reverse proxy examples. Nginx is not required; the service can be accessed directly at `http://<server-ip>:8005`.
 
 ## Operations Cheat Sheet
 

@@ -18,8 +18,8 @@
     "dayjs": "^1.11.23",
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",
-    "react": "^19.3.1",
-    "react-dom": "^19.1.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.1.5",
     "rehype-raw": "^7.0.0",
@@ -33,6 +33,10 @@
     "@types/react-dom": "^19.2.3",
     "typescript": "^5.6.3",
     "vite": "^8.3.4"
+  },
+  "overrides": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   },
   "engines": {
     "node": ">=22.12.0"

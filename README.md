@@ -102,11 +102,10 @@ docker run -d --name cloudctf --restart unless-stopped \
   -v "$PWD/data:/app/data" \
   -v "$PWD/static:/app/static" \
   -e APP_ENV=production \
-  -e JWT_SECRET='替换为强随机字符串' \
-  -e FIRST_SUPERUSER_PASSWORD='替换为至少12位的强密码' \
-  -e ALLOWED_ORIGINS='http://服务器IP:8005' \
   peach0214/cloud_ctf:latest
 ```
+
+首次启动会自动生成 JWT 密钥和初始管理员密码，并保存到宿主机 `data/.env`。首次登录前运行 `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env` 查看密码；请妥善保管该文件，并在重建容器时继续挂载相同的 `data/` 目录。同源访问无需设置 `ALLOWED_ORIGINS`。
 
 > Docker Socket 等同于较高的宿主机权限。生产环境应隔离靶场节点，并限制挂载、网络和镜像来源。
 
@@ -131,6 +130,12 @@ Docker 使用外部数据库时，在原有命令中增加：
 
 ```bash
 -e DATABASE_URI='mysql://cloudctf:strong-password@tcp(mysql:3306)/cloudctf?charset=utf8mb4&parseTime=True&loc=Local'
+```
+
+PostgreSQL 示例：
+
+```bash
+-e DATABASE_URI='postgres://cloudctf:strong-password@postgres:5432/cloudctf?sslmode=require'
 ```
 
 > 数据库必须提前创建，连接账号需要建表、修改表、创建索引和读写数据的权限。容器内的 `localhost` 指向容器自身，请填写数据库容器服务名或可访问的主机地址。远程 PostgreSQL 生产环境建议按服务端要求配置 `sslmode=require` 或证书参数。修改连接串不会自动迁移旧数据库中的数据，切换前请先完成备份与迁移验证。

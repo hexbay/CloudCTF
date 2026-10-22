@@ -102,11 +102,10 @@ docker run -d --name cloudctf --restart unless-stopped \
   -v "$PWD/data:/app/data" \
   -v "$PWD/static:/app/static" \
   -e APP_ENV=production \
-  -e JWT_SECRET='replace-with-a-strong-random-secret' \
-  -e FIRST_SUPERUSER_PASSWORD='replace-with-a-strong-12+-character-password' \
-  -e ALLOWED_ORIGINS='http://server-ip:8005' \
   peach0214/cloud_ctf:latest
 ```
+
+On first startup, CloudCTF generates a JWT signing key and initial admin password and saves them to the host-mounted `data/.env`. Before the first login, read the password with `grep '^FIRST_SUPERUSER_PASSWORD=' data/.env`. Keep this file private and reuse the same `data/` volume when recreating the container. `ALLOWED_ORIGINS` is not needed for same-origin access.
 
 > Access to the Docker socket is equivalent to elevated host privileges. Isolate range nodes in production and restrict mounts, networking, and image sources.
 
@@ -131,6 +130,12 @@ For Docker with an external database, add this option to the existing command:
 
 ```bash
 -e DATABASE_URI='mysql://cloudctf:strong-password@tcp(mysql:3306)/cloudctf?charset=utf8mb4&parseTime=True&loc=Local'
+```
+
+For PostgreSQL:
+
+```bash
+-e DATABASE_URI='postgres://cloudctf:strong-password@postgres:5432/cloudctf?sslmode=require'
 ```
 
 > Create the database before starting CloudCTF. The account needs permission to create and alter tables and indexes, and to read and write data. Inside a container, `localhost` refers to that container; use the database service name or a reachable host address. For remote PostgreSQL production deployments, use `sslmode=require` or the certificate options required by your server. Changing the URI does not migrate existing data, so back up and validate the migration before switching databases.

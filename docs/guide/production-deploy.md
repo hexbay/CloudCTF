@@ -42,9 +42,8 @@ JWT_SECRET=replace-with-a-long-random-string
 LOG_LEVEL=info
 LOG_FILE=./cloudctf.log
 
-# 生产环境必须配置为实际访问源，不能使用 *
-# 有域名时推荐填写 https://ctf.example.com
-ALLOWED_ORIGINS=http://your-server-ip:8005
+# 同源访问无需设置；仅跨域部署时填写允许的来源
+# ALLOWED_ORIGINS=https://ctf.example.com
 
 # 在线更新：从 v* Tag 对应的 GitHub Release 获取新版本
 UPDATE_ENABLED=true

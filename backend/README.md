@@ -44,7 +44,7 @@ go run ./cmd/server reset-admin-password --username admin
 ./cloudctf-linux-amd64 reset-admin-password --username admin
 ```
 
-程序会在终端中隐藏输入新密码并要求确认。它默认读取 `.env` 中的 `DATABASE_URI`，也可以显式指定：
+程序会在终端中隐藏输入新密码并要求确认。它默认读取 `data/.env` 中的 `DATABASE_URI`，也可以显式指定：
 
 ```bash
 ./cloudctf-linux-amd64 reset-admin-password \
@@ -84,12 +84,13 @@ Supported schemes are `sqlite://` (and `sqlite3://`), `mysql://`, `postgres://`,
 后端支持两种配置方式，按优先级排序：
 
 1. **真实环境变量**（`export KEY=value`）
-2. **配置文件**（默认读取 `.env`，也可通过 `CONFIG_FILE` 指定）
+2. **配置文件**（默认读取 `data/.env`，也可通过 `CONFIG_FILE` 指定）
 
-复制示例文件后按需修改即可生效：
+本地开发可复制示例文件后按需修改（默认配置目录为 `data/`）：
 
 ```bash
-cp .env.example .env
+mkdir -p data
+cp .env.example data/.env
 ```
 
 ### 环境变量清单
@@ -104,21 +105,20 @@ cp .env.example .env
 | `LOG_FILE` | 日志文件路径 | `logs/backend.log` |
 | `DATABASE_URI` | 数据库连接（`sqlite://...`、`mysql://...`、`postgres://...` 或 `postgresql://...`） | `sqlite://data/cloudctf.db` |
 | `REDIS_ADDR` | Redis 地址 | `localhost:6379` |
-| `JWT_SECRET` | JWT 签名密钥 | `change-me` |
+| `FIRST_SUPERUSER_USERNAME` | 首次创建管理员时使用的用户名 | `admin` |
+| `JWT_SECRET` | JWT 签名密钥；生产环境未设置时自动生成并持久化 | 自动生成（生产环境） |
 | `UPLOAD_DIR` | 上传文件目录 | `static/uploads` |
 | `STATIC_DIR` | 静态资源目录 | `static` |
 | `FRONTEND_DIR` | 前端构建产物目录 | `../frontend/dist` |
 | `BACKUP_DIR` | 备份文件目录 | `data/backups` |
 | `BACKUP_RETENTION` | 备份保留天数 | `7` |
-| `ALLOWED_ORIGINS` | 允许的 CORS 来源（逗号分隔）；生产环境不能使用 `*` | `*` |
-| `CONFIG_FILE` | 配置文件路径（默认 `.env`） | `.env` |
+| `ALLOWED_ORIGINS` | 允许跨域访问 API 的来源（逗号分隔）；同源访问无需设置 | 空（仅同源） |
+| `FIRST_SUPERUSER_PASSWORD` | 首次创建管理员时使用的密码；生产环境未设置时自动生成并持久化 | 自动生成（生产环境） |
+| `CONFIG_FILE` | 配置文件路径 | `data/.env` |
 
-生产环境启用 `APP_ENV=production` 时，必须显式配置：
+生产环境启用 `APP_ENV=production` 时，若未设置 `JWT_SECRET` 和 `FIRST_SUPERUSER_PASSWORD`，程序会自动生成安全随机值并保存到 `data/.env`。确保该目录持久化，并从该文件读取首次管理员密码。跨域部署时才需要配置 `ALLOWED_ORIGINS`；直接通过同一服务地址访问时无需配置。
 
-- `JWT_SECRET`：非默认的强随机字符串
-- `ALLOWED_ORIGINS`：实际访问源，例如 `https://ctf.example.com` 或 `http://服务器IP:8005`
-
-如果 `ALLOWED_ORIGINS` 为空或未配置，会回退到默认值 `*`，生产模式下服务会拒绝启动。
+复制 `.env.example` 时请勿将其 `APP_ENV` 改为生产后继续沿用示例中的占位密钥；生产部署推荐直接让程序生成并保存密钥。
 
 ## API compatibility
 

@@ -2,6 +2,8 @@ package config
 
 import (
 	"bufio"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -41,6 +43,7 @@ type Config struct {
 
 func Load() Config {
 	loadEnvFiles()
+	ensureGeneratedSecrets()
 	return Config{
 		AppName:                env("APP_NAME", "CloudCTF API"),
 		Host:                   env("HOST", "0.0.0.0"),
@@ -58,7 +61,7 @@ func Load() Config {
 		FrontendDir:            env("FRONTEND_DIR", "../frontend/dist"),
 		BackupDir:              env("BACKUP_DIR", "data/backups"),
 		BackupRetention:        envInt("BACKUP_RETENTION", 7),
-		AllowedOrigins:         envList("ALLOWED_ORIGINS", []string{"*"}),
+		AllowedOrigins:         envList("ALLOWED_ORIGINS", nil),
 		ContainerLabelKey:      env("CONTAINER_LABEL_KEY", "com.cloudctf.project"),
 		ContainerLabelValue:    env("CONTAINER_LABEL_VALUE", "cloudctf"),
 		ContainerManagedKey:    env("CONTAINER_MANAGED_LABEL_KEY", "com.cloudctf.managed"),
@@ -97,9 +100,9 @@ func (c Config) Validate() error {
 
 	if c.IsProduction() {
 		if strings.TrimSpace(c.JWTSecret) == "" || c.JWTSecret == "change-me" {
-			issues = append(issues, "JWT_SECRET must be set to a non-default value in production")
+			issues = append(issues, "JWT_SECRET could not be generated or loaded; check CONFIG_FILE permissions")
 		}
-		if len(c.AllowedOrigins) == 0 || containsStringFold(c.AllowedOrigins, "*") {
+		if containsStringFold(c.AllowedOrigins, "*") {
 			issues = append(issues, "ALLOWED_ORIGINS must not contain * in production")
 		}
 		if len(c.FirstSuperuserPassword) < 12 {
@@ -154,15 +157,79 @@ func containsStringFold(items []string, target string) bool {
 }
 
 // loadEnvFiles loads key=value pairs from a config file into the process
-// environment. The file path comes from CONFIG_FILE (default ".env"). Existing
+// environment. The file path comes from CONFIG_FILE (default "data/.env"). Existing
 // environment variables always win, so the file only provides fallbacks. A
 // missing file is ignored silently.
 func loadEnvFiles() {
 	path := strings.TrimSpace(os.Getenv("CONFIG_FILE"))
 	if path == "" {
-		path = ".env"
+		path = filepath.Join("data", ".env")
 	}
 	applyEnvFile(path)
+}
+
+// ensureGeneratedSecrets creates durable production credentials on first boot.
+// Explicit environment variables and values loaded from CONFIG_FILE always win.
+func ensureGeneratedSecrets() {
+	if !strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production") {
+		return
+	}
+	path := strings.TrimSpace(os.Getenv("CONFIG_FILE"))
+	if path == "" {
+		path = filepath.Join("data", ".env")
+	}
+	generated := make(map[string]string, 2)
+	for _, key := range []string{"JWT_SECRET", "FIRST_SUPERUSER_PASSWORD"} {
+		if strings.TrimSpace(os.Getenv(key)) != "" {
+			continue
+		}
+		var raw [32]byte
+		if _, err := rand.Read(raw[:]); err != nil {
+			continue
+		}
+		value := hex.EncodeToString(raw[:])
+		_ = os.Setenv(key, value)
+		generated[key] = value
+	}
+	if len(generated) == 0 {
+		return
+	}
+	if err := persistGeneratedValues(path, generated); err != nil {
+		// Forget values that were not made durable: a restart must not rotate them
+		// unexpectedly, and startup validation will report any missing secret.
+		for key := range generated {
+			_ = os.Unsetenv(key)
+		}
+	}
+}
+
+func persistGeneratedValues(path string, values map[string]string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	if err := file.Chmod(0o600); err != nil {
+		return err
+	}
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	if info.Size() > 0 {
+		if _, err := file.WriteString("\n"); err != nil {
+			return err
+		}
+	}
+	for key, value := range values {
+		if _, err := fmt.Fprintf(file, "%s=%s\n", key, value); err != nil {
+			return err
+		}
+	}
+	return file.Sync()
 }
 
 func applyEnvFile(path string) {
@@ -171,6 +238,13 @@ func applyEnvFile(path string) {
 		return
 	}
 	defer file.Close()
+	externalEnv := make(map[string]struct{})
+	for _, entry := range os.Environ() {
+		key, _, ok := strings.Cut(entry, "=")
+		if ok {
+			externalEnv[key] = struct{}{}
+		}
+	}
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -187,7 +261,7 @@ func applyEnvFile(path string) {
 		if key == "" {
 			continue
 		}
-		if _, exists := os.LookupEnv(key); exists {
+		if _, exists := externalEnv[key]; exists {
 			continue
 		}
 		_ = os.Setenv(key, unquoteEnv(strings.TrimSpace(value)))

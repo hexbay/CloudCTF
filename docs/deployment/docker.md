@@ -29,11 +29,36 @@ docker run -d \
   -v "$PWD/data:/app/data" \
   -v "$PWD/static:/app/static" \
   -e APP_ENV=production \
-  -e JWT_SECRET='replace-with-a-long-random-string' \
-  -e FIRST_SUPERUSER_PASSWORD='replace-with-a-strong-12+-character-password' \
-  -e ALLOWED_ORIGINS='http://your-server-ip:8005' \
   peach0214/cloud_ctf:latest
 ```
+
+首次启动时，CloudCTF 会自动生成 JWT 密钥和初始管理员密码，并保存到宿主机的 `data/.env`（文件权限为仅当前用户可读写）。管理员用户名默认为 `admin`。第一次登录前查看生成的密码：
+
+```bash
+grep '^FIRST_SUPERUSER_PASSWORD=' data/.env
+```
+
+请妥善保管该文件，不要提交到 Git。后续重建容器时继续挂载同一个 `data/` 目录，密钥和密码就会保持不变。若数据库中已经存在管理员账号，生成的初始密码不会重置该账号密码。
+
+直接通过该服务自身地址访问时无需配置 `ALLOWED_ORIGINS`。只有当前端部署在另一个域名/端口、需要跨域调用 API 时，才添加 `-e ALLOWED_ORIGINS='https://your-frontend.example.com'`。
+
+## 配置自定义数据库
+
+默认使用 SQLite，数据库文件保存在 `data/cloudctf.db`。要改用 MySQL 或 PostgreSQL，先创建数据库和专用账号，再在 `docker run` 命令中添加 `DATABASE_URI`。数据库需要提前存在；CloudCTF 首次连接后会自动创建和迁移数据表。
+
+MySQL：
+
+```bash
+-e DATABASE_URI='mysql://cloudctf:strong-password@tcp(mysql:3306)/cloudctf?charset=utf8mb4&parseTime=True&loc=Local'
+```
+
+PostgreSQL：
+
+```bash
+-e DATABASE_URI='postgres://cloudctf:strong-password@postgres:5432/cloudctf?sslmode=require'
+```
+
+将对应选项加到上面的完整 `docker run` 命令中即可。将 `mysql` / `postgres` 替换成容器可访问的数据库主机名或 IP；若数据库也运行在 Docker 中，需要让两个容器加入同一个 Docker 网络。不要在应用容器里使用 `localhost` 连接另一个容器。数据库账号需要创建/修改表、创建索引以及读写数据的权限。远程 PostgreSQL 请按服务端要求配置 TLS。切换数据库不会自动搬迁原数据库中的数据，迁移前请先备份并单独完成数据导入验证。
 
 启动后访问：
 

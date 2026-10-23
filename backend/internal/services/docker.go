@@ -70,14 +70,18 @@ func BuildDockerfileWithLog(ctx context.Context, cli *client.Client, name string
 		return err
 	}
 	defer resp.Body.Close()
-	decoder := json.NewDecoder(resp.Body)
+	return decodeDockerBuildResponse(resp.Body, onLine)
+}
+
+func decodeDockerBuildResponse(reader io.Reader, onLine func(string)) error {
+	decoder := json.NewDecoder(reader)
 	for {
 		var line map[string]any
 		if err := decoder.Decode(&line); err != nil {
 			if err == io.EOF {
 				break
 			}
-			continue
+			return fmt.Errorf("decode Docker build response: %w", err)
 		}
 		if stream, ok := line["stream"].(string); ok && stream != "" {
 			emitDockerLogLines(stream, onLine)
@@ -88,7 +92,6 @@ func BuildDockerfileWithLog(ctx context.Context, cli *client.Client, name string
 		}
 	}
 	return nil
-
 }
 
 func BuildDockerfileByPath(ctx context.Context, cli *client.Client, name string, dockerDirectory string, dockerfilePath string) error {

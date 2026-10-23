@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -623,6 +624,7 @@ func adminVirtualizationTemplateBuildStreamHandler(w http.ResponseWriter, r *htt
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		println("[SSE] ERROR: streaming unsupported")
@@ -640,6 +642,8 @@ func adminVirtualizationTemplateBuildStreamHandler(w http.ResponseWriter, r *htt
 		flusher.Flush()
 	}
 	sent := 0
+	heartbeat := time.NewTicker(15 * time.Second)
+	defer heartbeat.Stop()
 	for {
 		logs, status, done := snapshotTemplateBuildTask(task)
 		for sent < len(logs) {
@@ -657,6 +661,12 @@ func adminVirtualizationTemplateBuildStreamHandler(w http.ResponseWriter, r *htt
 		select {
 		case <-r.Context().Done():
 			return
+		case <-heartbeat.C:
+			// SSE comments keep idle proxy connections alive without producing a UI log entry.
+			if _, err := w.Write([]byte(": keepalive\n\n")); err != nil {
+				return
+			}
+			flusher.Flush()
 		case <-time.After(400 * time.Millisecond):
 		}
 	}
@@ -664,6 +674,7 @@ func adminVirtualizationTemplateBuildStreamHandler(w http.ResponseWriter, r *htt
 
 // completeTemplateBuild 完成模板构建并创建日志和通知
 func (srv *Server) completeTemplateBuild(templateID string, template models.Templates, success bool, message string) {
+	logger := srv.templateBuildLogger(templateID, "", template.Name)
 	now := time.Now().Format(time.RFC3339)
 	status := "completed"
 	buildStatus := "completed"
@@ -674,16 +685,20 @@ func (srv *Server) completeTemplateBuild(templateID string, template models.Temp
 
 	template.Status = models.TemplateStatus(status)
 	template.UpdatedAt = parseRFC3339OrNow(now)
-	_ = srv.saveTemplateBuildResult(templateID, template)
+	if err := srv.saveTemplateBuildResult(templateID, template); err != nil {
+		logger.Error("template build result persistence failed", "status", buildStatus, "error", err)
+	}
 
 	// 创建构建日志
 	if service := srv.getMiscResourceService(); service != nil {
-		_, _ = service.CreateBuildLog(map[string]any{
+		if _, err := service.CreateBuildLog(map[string]any{
 			"template_id":   template.Id,
 			"template_name": template.Name,
 			"status":        buildStatus,
 			"message":       message,
-		})
+		}); err != nil {
+			logger.Error("template build audit log persistence failed", "status", buildStatus, "error", err)
+		}
 	}
 
 	// 发送通知给管理员
@@ -711,15 +726,20 @@ func (srv *Server) createTemplateBuildTask(templateID string, template models.Te
 	templateBuildTasks.mu.Lock()
 	templateBuildTasks.tasks[templateID] = task
 	templateBuildTasks.mu.Unlock()
-	_ = srv.markTemplateBuilding(templateID, now)
+	logger := srv.templateBuildLogger(templateID, task.ID, template.Name)
+	if err := srv.markTemplateBuilding(templateID, now); err != nil {
+		logger.Error("template build status persistence failed", "status", "building", "error", err)
+	}
 	if service := srv.getMiscResourceService(); service != nil {
-		_, _ = service.CreateBuildLog(map[string]any{
+		if _, err := service.CreateBuildLog(map[string]any{
 			"template_id":   template.Id,
 			"template_name": template.Name,
 			"task_id":       task.ID,
 			"status":        "building",
 			"message":       "template build started",
-		})
+		}); err != nil {
+			logger.Error("template build audit log persistence failed", "status", "building", "error", err)
+		}
 	}
 	return task
 }
@@ -772,12 +792,16 @@ func serializeTemplateBuildTask(task *templateBuildTask) map[string]any {
 
 func (srv *Server) runTemplateBuildTask(task *templateBuildTask) {
 	template := task.Template
+	logger := srv.templateBuildLogger(task.TemplateID, task.ID, template.Name)
+	startedAt := time.Now()
+	logger.Info("template build task running", "services_count", len(template.Services))
 	err := services.TemplateBuild(&template, &services.TemplateBuildOptions{
 		Logf: func(format string, args ...any) {
 			appendTemplateBuildTaskLog(task, fmt.Sprintf(format, args...))
 		},
 	})
 	if err != nil {
+		logger.Error("template build task failed", "duration", time.Since(startedAt), "error", err)
 		appendTemplateBuildTaskLog(task, "模板构建失败: "+err.Error())
 		srv.completeTemplateBuild(task.TemplateID, template, false, err.Error())
 		finishTemplateBuildTask(task, "failed")
@@ -788,6 +812,19 @@ func (srv *Server) runTemplateBuildTask(task *templateBuildTask) {
 	appendTemplateBuildTaskLog(task, "模板构建完成")
 	srv.completeTemplateBuild(task.TemplateID, template, true, "模板构建完成")
 	finishTemplateBuildTask(task, "completed")
+	logger.Info("template build task completed", "duration", time.Since(startedAt))
+}
+
+func (srv *Server) templateBuildLogger(templateID string, taskID string, templateName any) *slog.Logger {
+	logger := srv.logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return logger.With(
+		"template_id", templateID,
+		"task_id", taskID,
+		"template_name", stringifyID(templateName),
+	)
 }
 
 func (srv *Server) saveTemplateBuildResult(templateID string, template models.Templates) error {

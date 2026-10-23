@@ -250,6 +250,22 @@ export type PlayerUser = {
   is_staff?: boolean;
 };
 
+export type APIKeyStatus = {
+  exists: boolean;
+  api_key?: string;
+  created_at?: string;
+  updated_at?: string;
+  last_used_at?: string | null;
+};
+
+export type MCPConfig = {
+  mcpServers: Record<string, {
+    type: string;
+    url: string;
+    headers: Record<string, string>;
+  }>;
+};
+
 export type PlayerLoginResponse = {
   access_token: string;
   refresh_token: string;
@@ -289,6 +305,18 @@ export const playerApi = {
   },
   me() {
     return request<PlayerUser>('/api/me');
+  },
+  apiKey() {
+    return request<APIKeyStatus>('/api/user/api-key');
+  },
+  generateApiKey() {
+    return request<APIKeyStatus>('/api/user/api-key', { method: 'POST' });
+  },
+  resetApiKey() {
+    return request<APIKeyStatus>('/api/user/api-key/reset', { method: 'POST' });
+  },
+  mcpConfig() {
+    return request<MCPConfig>('/api/mcp/config');
   },
   competitions(query?: Record<string, string | number | boolean | undefined>) {
     return request<ListResponse<PlayerCompetition>>('/api/competitions', { query });

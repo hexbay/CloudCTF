@@ -61,6 +61,7 @@ func PrepareSchema(db *gorm.DB) error {
 		&models.Role{},
 		&models.User{},
 		&models.RefreshToken{},
+		&models.APIKey{},
 		&models.Competition{},
 		&models.Team{},
 		&models.TeamMember{},

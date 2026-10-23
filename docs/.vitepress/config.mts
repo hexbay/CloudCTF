@@ -62,6 +62,7 @@ export default defineConfig({
             { text: "用户 API", link: "/api/users" },
             { text: "题目 API", link: "/api/challenges" },
             { text: "比赛 API", link: "/api/competitions" },
+            { text: "MCP 接入", link: "/api/mcp" },
           ],
         },
       ],

@@ -18,6 +18,7 @@ import {
   type PlayerStats,
   type PublicSystemSettings,
 } from "@shared/api/player";
+import { MCPConfigCard } from "../components/MCPConfigCard";
 
 const statusText: Record<string, string> = {
   ongoing: "进行中",
@@ -243,6 +244,11 @@ export function PlayerDashboardPage() {
       ) : null}
 
       <Row gutter={[16, 16]} className="dashboard-lower-grid">
+        {loggedIn ? (
+          <Col xs={24}>
+            <MCPConfigCard />
+          </Col>
+        ) : null}
         <Col xs={24} xl={14}>
           <Card
             className="player-list-card dashboard-section-card dashboard-action-card dashboard-animate-card"

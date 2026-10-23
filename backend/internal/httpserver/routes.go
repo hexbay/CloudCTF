@@ -15,6 +15,7 @@ func (srv *Server) registerPrimaryAPIRoutes(mux *http.ServeMux) {
 	srv.registerAdminResourceRoutes(mux)
 	srv.registerPlayerRoutes(mux)
 	srv.registerPublicRoutes(mux)
+	mux.HandleFunc("POST /mcp", srv.mcpHandler)
 }
 
 func (srv *Server) registerPublicRoutes(mux *http.ServeMux) {
@@ -30,6 +31,10 @@ func (srv *Server) registerPlayerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/refresh", srv.playerRefreshHandler)
 	mux.HandleFunc("POST /api/logout", srv.playerLogoutHandler)
 	mux.HandleFunc("POST /api/stream-ticket", srv.streamTicketHandler)
+	mux.HandleFunc("GET /api/user/api-key", srv.playerAPIKeyStatusHandler)
+	mux.HandleFunc("POST /api/user/api-key", srv.playerAPIKeyGenerateHandler)
+	mux.HandleFunc("POST /api/user/api-key/reset", srv.playerAPIKeyResetHandler)
+	mux.HandleFunc("GET /api/mcp/config", srv.playerMCPConfigHandler)
 
 	mux.HandleFunc("GET /api/competitions", srv.playerCompetitionsHandler)
 	mux.HandleFunc("GET /api/competitions/{id}", srv.playerCompetitionDetailHandler)

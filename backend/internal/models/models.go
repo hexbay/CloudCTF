@@ -49,6 +49,18 @@ type RefreshToken struct {
 
 func (RefreshToken) TableName() string { return "refresh_tokens" }
 
+// APIKey is the single long-lived MCP credential owned by a user.
+type APIKey struct {
+	ID         uint       `gorm:"primaryKey" json:"id"`
+	UserID     uint       `gorm:"not null;uniqueIndex" json:"user_id"`
+	Key        string     `gorm:"column:api_key;size:128;not null;uniqueIndex" json:"api_key"`
+	LastUsedAt *time.Time `json:"last_used_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+}
+
+func (APIKey) TableName() string { return "api_keys" }
+
 type Competition struct {
 	ID               uint       `gorm:"primaryKey" json:"id"`
 	Name             string     `gorm:"size:255;not null" json:"name"`

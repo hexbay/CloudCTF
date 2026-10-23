@@ -4,9 +4,16 @@
   --player-surface-raised: #182235;
   --player-border: rgba(148, 163, 184, 0.2);
   --player-border-subtle: rgba(148, 163, 184, 0.13);
-  --player-text: #f3f6fb;
-  --player-text-secondary: #b8c3d3;
-  --player-text-muted: #96a3b7;
+  /* Semantic foreground tokens: keep text contrast consistent across dark surfaces. */
+  --player-fg-heading: #f7fbff;
+  --player-fg-body: #dce6ef;
+  --player-fg-secondary: #b7c7d6;
+  --player-fg-muted: #98acbf;
+  --player-fg-subtle: #7f96ab;
+  --player-fg-accent: #9af1f5;
+  --player-text: var(--player-fg-heading);
+  --player-text-secondary: var(--player-fg-secondary);
+  --player-text-muted: var(--player-fg-muted);
   --player-brand: #22c7db;
   --player-brand-hover: #67e8f9;
   --player-link: #38bdf8;
@@ -5397,110 +5404,489 @@
   background: rgba(148, 163, 184, 0.14);
 }
 
+.player-account-page {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.72fr) minmax(0, 1.8fr);
+  gap: 20px;
+  max-width: 1320px;
+  margin: 0 auto 42px;
+}
+
+.account-sidebar,
+.account-main-column {
+  display: grid;
+  align-content: start;
+  gap: 20px;
+  min-width: 0;
+}
+
+.account-profile-card,
+.account-info-card,
+.account-key-card,
+.account-client-card {
+  overflow: hidden;
+  border-color: rgba(148, 163, 184, 0.14) !important;
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(2, 6, 23, 0.2);
+}
+
 .account-profile-card {
+  position: relative;
+  min-height: 338px;
   text-align: center;
   background:
-    linear-gradient(180deg, rgba(22, 31, 46, 0.98), rgba(24, 36, 54, 0.96)) !important;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  min-height: 196px;
+    radial-gradient(circle at 50% 5%, rgba(34, 211, 238, 0.13), transparent 34%),
+    linear-gradient(160deg, rgba(19, 31, 48, 0.98), rgba(15, 24, 39, 0.98)) !important;
+}
+
+.account-profile-glow {
+  position: absolute;
+  top: -104px;
+  left: 50%;
+  width: 220px;
+  height: 220px;
+  border: 1px solid rgba(103, 232, 249, 0.09);
+  border-radius: 50%;
+  box-shadow: 0 0 0 34px rgba(34, 211, 238, 0.025), 0 0 0 68px rgba(34, 211, 238, 0.015);
+  transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .account-profile-card .ant-card-body {
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  padding: 28px 24px;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 42px 28px 30px;
 }
 
 .account-profile-card .ant-avatar {
-  background: rgba(15, 23, 42, 0.9);
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.12);
+  color: #dffcff;
+  background: linear-gradient(145deg, rgba(15, 118, 110, 0.58), rgba(8, 47, 73, 0.94));
+  border: 1px solid rgba(103, 232, 249, 0.32);
+  box-shadow: 0 16px 36px rgba(8, 145, 178, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-.account-profile-card h3 {
-  margin: 14px 0 4px;
-  color: #ffffff;
+.account-profile-card h3.ant-typography {
+  margin: 22px 0 4px;
+  color: var(--player-fg-heading);
+  font-size: 22px;
+  font-weight: 750;
 }
 
-.account-profile-card p {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.58);
+.account-profile-card .ant-typography-secondary,
+.account-profile-card > .ant-card-body > .ant-typography {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--player-fg-secondary);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.account-edit-card {
-  background:
-    linear-gradient(135deg, rgba(34, 34, 52, 0.96), rgba(34, 30, 54, 0.92)) !important;
-  border: 1px solid rgba(148, 163, 184, 0.14);
+.account-profile-card .ant-skeleton {
+  width: 100%;
+  margin-top: 22px;
 }
 
-.account-edit-card .ant-card-body {
-  padding: 24px 24px 22px;
+.account-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 26px;
+  padding: 7px 12px;
+  color: var(--player-fg-accent);
+  background: rgba(20, 184, 166, 0.09);
+  border: 1px solid rgba(45, 212, 191, 0.14);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
 }
 
-.player-account-form .ant-form-item {
-  margin-bottom: 18px;
+.account-security-note {
+  display: flex;
+  gap: 12px;
+  padding: 16px 18px;
+  color: var(--player-fg-accent);
+  background: rgba(14, 116, 144, 0.06);
+  border: 1px solid rgba(56, 189, 248, 0.12);
+  border-radius: 13px;
 }
 
-.player-account-form .ant-form-item-label > label {
-  color: rgba(226, 232, 240, 0.88) !important;
-  font-weight: 600;
+.account-security-note > .anticon {
+  margin-top: 2px;
+  font-size: 17px;
 }
 
-.player-account-form .ant-input,
-.player-account-form .ant-input:focus,
-.player-account-form .ant-input-focused,
-.player-account-form .ant-input-affix-wrapper,
-.player-account-form .ant-input-affix-wrapper:hover,
-.player-account-form .ant-input-affix-wrapper-focused,
-.player-account-form .ant-input-affix-wrapper:focus,
-.player-account-form .ant-input-outlined,
-.player-account-form .ant-input-outlined:hover,
-.player-account-form .ant-input-outlined:focus,
-.player-account-form .ant-input-outlined.ant-input-status-error,
-.player-account-form .ant-input-textarea-affix-wrapper,
-.player-account-form .ant-input-textarea-show-count::after,
-.player-account-form textarea.ant-input {
-  color: rgba(226, 232, 240, 0.9) !important;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(20, 28, 45, 0.94)) !important;
-  border-color: rgba(100, 116, 139, 0.28) !important;
-  box-shadow: none !important;
+.account-security-note div {
+  display: grid;
+  gap: 4px;
 }
 
-.player-account-form .ant-input,
-.player-account-form textarea.ant-input {
+.account-security-note strong {
+  color: var(--player-fg-body);
+  font-size: 12px;
+}
+
+.account-security-note span {
+  color: var(--player-fg-muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.account-info-card,
+.account-key-card,
+.account-client-card {
+  background: linear-gradient(145deg, rgba(19, 29, 46, 0.98), rgba(17, 25, 40, 0.98)) !important;
+}
+
+.account-info-card .ant-card-head,
+.account-key-card .ant-card-head,
+.account-client-card .ant-card-head {
+  min-height: 76px;
+  padding: 0 26px;
+  border-bottom-color: rgba(148, 163, 184, 0.1);
+}
+
+.account-info-card .ant-card-body,
+.account-key-card .ant-card-body,
+.account-client-card .ant-card-body {
+  padding: 26px;
+}
+
+.account-card-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.account-card-title-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: #67e8f9;
+  background: rgba(8, 145, 178, 0.12);
+  border: 1px solid rgba(103, 232, 249, 0.15);
   border-radius: 10px;
 }
 
-.player-account-form .ant-input {
-  height: 46px;
+.account-card-title > span:last-child {
+  display: grid;
+  gap: 1px;
 }
 
-.player-account-form textarea.ant-input {
-  min-height: 132px;
-  padding-top: 12px;
-  resize: vertical;
+.account-card-title small {
+  color: var(--player-fg-subtle);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
 }
 
-.player-account-form .ant-input::placeholder,
-.player-account-form textarea.ant-input::placeholder {
-  color: rgba(148, 163, 184, 0.72);
+.account-card-title strong {
+  color: var(--player-fg-heading);
+  font-size: 15px;
+  font-weight: 750;
 }
 
-.player-account-form .ant-input:hover,
-.player-account-form .ant-input:focus,
-.player-account-form textarea.ant-input:hover,
-.player-account-form textarea.ant-input:focus {
-  border-color: rgba(56, 189, 248, 0.42) !important;
+.account-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.player-account-form .ant-btn-primary {
-  height: 42px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 8px;
-  background: linear-gradient(90deg, #0f766e, #0e7490);
-  box-shadow: 0 10px 24px rgba(14, 116, 144, 0.2);
+.account-info-item {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+  padding: 16px;
+  background: rgba(5, 12, 23, 0.27);
+  border: 1px solid rgba(148, 163, 184, 0.09);
+  border-radius: 11px;
+}
+
+.account-info-item.is-wide {
+  grid-column: 1 / -1;
+}
+
+.account-info-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  color: var(--player-fg-secondary);
+  background: rgba(71, 85, 105, 0.14);
+  border-radius: 9px;
+}
+
+.account-info-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.account-info-copy small {
+  color: var(--player-fg-muted);
+  font-size: 12px;
+}
+
+.account-info-copy strong {
+  overflow: hidden;
+  color: var(--player-fg-body);
+  font-size: 13px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-key-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.12);
+  border-radius: 999px;
+  font-size: 11px;
   font-weight: 700;
+}
+
+.account-key-status i {
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  border-radius: 50%;
+}
+
+.account-key-status.is-active {
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.14);
+}
+
+.account-key-description.ant-typography {
+  max-width: 660px;
+  margin: 0 0 22px;
+  color: var(--player-fg-secondary);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.account-key-alert.ant-alert {
+  margin-bottom: 22px;
+  background: rgba(8, 145, 178, 0.07);
+  border-color: rgba(56, 189, 248, 0.16);
+}
+
+.account-key-alert .ant-alert-message {
+  color: var(--player-fg-body);
+}
+
+.account-key-alert .ant-alert-description {
+  color: var(--player-fg-secondary);
+}
+
+.account-key-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.account-key-field .ant-input-affix-wrapper,
+.account-key-field .ant-btn {
+  height: 40px;
+}
+
+.account-key-field .ant-input-affix-wrapper {
+  color: var(--player-fg-body);
+  background: rgba(5, 12, 23, 0.54);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.account-key-field .ant-input {
+  color: var(--player-fg-body);
+  background: transparent;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.account-key-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.account-key-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--player-fg-subtle);
+  font-size: 12px;
+}
+
+.account-key-meta strong {
+  overflow: hidden;
+  color: var(--player-fg-secondary);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-key-footer .ant-btn {
+  height: 40px;
+  padding-inline: 16px;
+  border-radius: 9px;
+  font-weight: 700;
+}
+
+.account-key-footer .ant-btn-primary {
+  background: linear-gradient(90deg, #0f766e, #0e7490);
+  border: 0;
+  box-shadow: 0 10px 24px rgba(14, 116, 144, 0.2);
+}
+
+.account-client-description.ant-typography {
+  margin: 0 0 14px;
+  color: var(--player-fg-secondary);
+  font-size: 14px;
+}
+
+.account-client-warning.ant-alert {
+  margin-bottom: 14px;
+  color: var(--player-fg-body);
+  background: rgba(245, 158, 11, 0.07);
+  border-color: rgba(245, 158, 11, 0.16);
+}
+
+.account-client-warning .ant-alert-message {
+  color: #f7d58a;
+}
+
+.account-client-tabs .ant-tabs-nav {
+  margin-bottom: 14px;
+}
+
+.account-client-tabs .ant-tabs-nav::before {
+  border-bottom-color: rgba(148, 163, 184, 0.12);
+}
+
+.account-client-tabs .ant-tabs-tab {
+  color: var(--player-fg-muted);
+  font-weight: 650;
+}
+
+.account-client-tabs .ant-tabs-tab:hover,
+.account-client-tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--player-fg-accent) !important;
+}
+
+.account-client-tabs .ant-tabs-ink-bar {
+  background: #22c7db;
+}
+
+.account-client-config {
+  overflow: hidden;
+  background: rgba(4, 10, 20, 0.48);
+  border: 1px solid rgba(148, 163, 184, 0.11);
+  border-radius: 12px;
+}
+
+.account-client-config-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 46px;
+  padding: 0 10px 0 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.09);
+}
+
+.account-client-config-head span {
+  overflow: hidden;
+  color: var(--player-fg-muted);
+  font: 12px/1.4 "SFMono-Regular", Consolas, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-client-config-head .ant-btn {
+  color: var(--player-fg-accent);
+  font-size: 12px;
+}
+
+.account-client-config pre {
+  overflow: hidden;
+  margin: 0;
+  padding: 18px 20px;
+  color: #c8e8ec;
+  font: 12px/1.75 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.account-client-config p {
+  margin: 0;
+  padding: 12px 16px;
+  color: var(--player-fg-muted);
+  background: rgba(15, 23, 42, 0.32);
+  border-top: 1px solid rgba(148, 163, 184, 0.07);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .player-account-page {
+    grid-template-columns: 1fr;
+  }
+
+  .account-profile-card {
+    min-height: 0;
+  }
+
+  .account-security-note {
+    display: none;
+  }
+}
+
+@media (max-width: 576px) {
+  .account-info-card .ant-card-head,
+  .account-key-card .ant-card-head,
+  .account-client-card .ant-card-head {
+    padding-inline: 18px;
+  }
+
+  .account-info-card .ant-card-body,
+  .account-key-card .ant-card-body,
+  .account-client-card .ant-card-body {
+    padding: 20px 18px;
+  }
+
+  .account-info-grid,
+  .account-key-field {
+    grid-template-columns: 1fr;
+  }
+
+  .account-info-item.is-wide {
+    grid-column: auto;
+  }
+
+  .account-key-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .account-key-footer .ant-btn {
+    width: 100%;
+  }
 }
 
 .player-auth-modal .ant-modal-content {
@@ -6485,4 +6871,83 @@
 /* ================================================================
    CTF Scoreboard Panel
    ================================================================ */
+
+/* Dashboard MCP entry */
+.mcp-config-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 168px;
+  background: radial-gradient(circle at 8% 30%, rgba(34, 211, 238, 0.12), transparent 24%), linear-gradient(110deg, rgba(15, 31, 49, 0.98), rgba(18, 24, 40, 0.96) 55%, rgba(24, 25, 45, 0.96)) !important;
+  border: 1px solid rgba(71, 180, 203, 0.24) !important;
+  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.mcp-config-card::after {
+  position: absolute; top: -90px; right: 12%; width: 260px; height: 260px;
+  content: ""; border: 1px solid rgba(34, 211, 238, 0.08); border-radius: 50%;
+  box-shadow: 0 0 0 34px rgba(34, 211, 238, 0.025), 0 0 0 68px rgba(34, 211, 238, 0.018); pointer-events: none;
+}
+.mcp-config-card .ant-card-body {
+  position: relative; z-index: 1; display: grid; grid-template-columns: 76px minmax(0, 1fr) auto;
+  align-items: center; gap: 24px; min-height: 166px; padding: 24px 28px !important;
+}
+.mcp-config-mark {
+  display: grid; place-items: center; width: 68px; height: 68px; color: #67e8f9; font-size: 29px;
+  background: linear-gradient(145deg, rgba(8, 145, 178, 0.3), rgba(6, 78, 99, 0.16));
+  border: 1px solid rgba(103, 232, 249, 0.26); border-radius: 20px;
+  box-shadow: 0 12px 30px rgba(6, 182, 212, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.mcp-config-kicker { margin-bottom: 5px; color: #5f8296; font-size: 10px; font-weight: 800; letter-spacing: 0.16em; }
+.mcp-config-title-row { display: flex; align-items: center; gap: 12px; }
+.mcp-config-title-row h3 { margin: 0; color: #eefcff; font-size: 21px; line-height: 1.25; }
+.mcp-config-title-row .ant-tag {
+  display: inline-flex; align-items: center; gap: 5px; margin: 0; padding: 2px 9px;
+  border: 0; border-radius: 999px; font-size: 11px; font-weight: 700;
+}
+.mcp-status-ready { color: #6ee7b7 !important; background: rgba(16, 185, 129, 0.13) !important; }
+.mcp-status-pending { color: #fcd34d !important; background: rgba(245, 158, 11, 0.13) !important; }
+.mcp-config-copy p { margin: 8px 0 12px; color: #94a3b8; font-size: 13px; }
+.mcp-config-meta { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.mcp-config-meta span { display: inline-flex; align-items: center; gap: 6px; color: #8ca6b7; font-size: 12px; white-space: nowrap; }
+.mcp-config-meta span i { width: 6px; height: 6px; background: #22d3ee; border-radius: 50%; box-shadow: 0 0 8px rgba(34, 211, 238, 0.8); }
+.mcp-config-meta code {
+  overflow: hidden; max-width: 430px; padding: 3px 8px; color: #7895a8; font-size: 11px;
+  text-overflow: ellipsis; white-space: nowrap; background: rgba(4, 12, 23, 0.42);
+  border: 1px solid rgba(96, 165, 250, 0.08); border-radius: 6px;
+}
+.mcp-config-actions { display: grid; grid-template-columns: repeat(2, auto); gap: 9px; min-width: 252px; }
+.mcp-config-actions .ant-btn { height: 38px; border-radius: 8px; font-weight: 700; }
+.mcp-config-actions .mcp-key-button {
+  grid-column: 1 / -1;
+}
+.mcp-config-modal {
+  --player-fg-body: #dce6ef;
+  --player-fg-secondary: #b7c7d6;
+  --player-fg-muted: #98acbf;
+  --player-fg-accent: #9af1f5;
+}
+.mcp-config-modal .ant-modal-content { background: #111827; border: 1px solid rgba(103, 232, 249, 0.16); box-shadow: 0 28px 80px rgba(0, 0, 0, 0.48); }
+.mcp-config-modal .ant-modal-header { background: transparent; }
+.mcp-config-modal .ant-modal-title, .mcp-config-modal .ant-modal-close { color: #e5f8fc; }
+.mcp-modal-hint { margin: 0 0 14px; color: var(--player-fg-secondary); }
+.mcp-client-modal-tabs .account-client-config { margin-bottom: 2px; }
+.mcp-config-code {
+  overflow-x: hidden; overflow-y: auto; max-height: 430px; margin: 0; padding: 18px 20px; color: #b7e7ef;
+  font: 12px/1.75 "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  overflow-wrap: anywhere; white-space: pre-wrap; word-break: break-word;
+  background: #07111f; border: 1px solid rgba(103, 232, 249, 0.1); border-radius: 10px;
+}
+@media (max-width: 900px) {
+  .mcp-config-card .ant-card-body { grid-template-columns: 60px minmax(0, 1fr); }
+  .mcp-config-mark { width: 56px; height: 56px; border-radius: 16px; }
+  .mcp-config-actions { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  .mcp-config-actions .mcp-key-button { grid-column: auto; }
+}
+@media (max-width: 576px) {
+  .mcp-config-card .ant-card-body { grid-template-columns: 1fr; gap: 14px; padding: 20px !important; }
+  .mcp-config-mark { display: none; }
+  .mcp-config-title-row, .mcp-config-meta { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .mcp-config-meta code { width: 100%; max-width: 100%; }
+  .mcp-config-actions { grid-template-columns: 1fr; }
+  .mcp-config-actions .mcp-key-button { grid-column: auto; }
+}
 

@@ -168,13 +168,13 @@ export function AdminSettingsPage() {
     if (activeTabKey !== "info") {
       return;
     }
-    void refreshSystemInfo();
+    void refreshSystemInfo(systemInfo !== null);
     if (!updateCheckStartedRef.current) {
       updateCheckStartedRef.current = true;
       void checkForUpdates(false);
     }
     const timer = window.setInterval(() => {
-      void refreshSystemInfo();
+      void refreshSystemInfo(true);
     }, 15000);
     return () => window.clearInterval(timer);
   }, [activeTabKey]);
@@ -210,15 +210,21 @@ export function AdminSettingsPage() {
     }
   }
 
-  async function loadSystemInfo() {
-    setSystemInfoLoading(true);
+  async function loadSystemInfo(silent = false) {
+    if (!silent) {
+      setSystemInfoLoading(true);
+    }
     try {
       const result = await adminApi.get<SystemInfo>("/api-admin/settings/settings/info");
       setSystemInfo(result);
     } catch (error) {
-      message.error(error instanceof Error ? error.message : "加载系统信息失败");
+      if (!silent) {
+        message.error(error instanceof Error ? error.message : "加载系统信息失败");
+      }
     } finally {
-      setSystemInfoLoading(false);
+      if (!silent) {
+        setSystemInfoLoading(false);
+      }
     }
   }
 
@@ -231,8 +237,8 @@ export function AdminSettingsPage() {
     }
   }
 
-  async function refreshSystemInfo() {
-    await Promise.allSettled([loadSystemInfo(), loadVersion()]);
+  async function refreshSystemInfo(silent = false) {
+    await Promise.allSettled([loadSystemInfo(silent), loadVersion()]);
   }
 
   async function checkForUpdates(announce = true) {
@@ -660,7 +666,7 @@ export function AdminSettingsPage() {
                     </Tag>
                     <Typography.Title level={4}>CloudCTF 管理节点</Typography.Title>
                     <Typography.Paragraph>
-                      在这里快速查看当前版本、运行状态和实时资源占用。系统信息标签激活时会自动刷新，适合巡检和发布后确认。
+                      在这里快速查看当前版本、运行状态和实时资源占用。数据会在后台静默更新，不会打断当前操作。
                     </Typography.Paragraph>
                     <Space wrap>
                       <Button type="primary" icon={<ReloadOutlined />} loading={systemInfoLoading} onClick={() => void refreshSystemInfo()}>

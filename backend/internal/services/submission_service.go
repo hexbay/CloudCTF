@@ -8,6 +8,7 @@ import (
 	"cloudctf/backend/internal/models"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type SubmissionService struct {
@@ -201,10 +202,10 @@ func (s *SubmissionService) PracticeChallengeRows(current, pageSize int, categor
 	db := s.db.Model(&models.Challenge{}).Where("is_active = ? AND is_public = ?", true, true)
 	if competitionID != "" {
 		db = db.Where("competition_id = ?", competitionID)
-		db = db.Where("usage IN ?", []string{"", "COMPETITION", "BOTH", "PRACTICE"})
+		db = db.Where(clause.IN{Column: clause.Column{Name: "usage"}, Values: []any{"", "COMPETITION", "BOTH", "PRACTICE"}})
 	} else {
 		db = db.Where("competition_id IS NULL")
-		db = db.Where("usage IN ?", []string{"", "PRACTICE", "BOTH"})
+		db = db.Where(clause.IN{Column: clause.Column{Name: "usage"}, Values: []any{"", "PRACTICE", "BOTH"}})
 	}
 	if category != "" {
 		db = db.Where("LOWER(category) = LOWER(?)", category)
@@ -222,27 +223,27 @@ func (s *SubmissionService) PracticeChallengeRows(current, pageSize int, categor
 	rows := make([]map[string]any, 0, len(items))
 	for _, item := range items {
 		row := map[string]any{
-			"id":                  item.ID,
-			"name":                item.Name,
-			"description":         item.Description,
-			"category":            item.Category,
-			"points":              item.Points,
-			"difficulty":          item.Difficulty,
-			"is_active":           item.IsActive,
-			"is_public":           item.IsPublic,
-			"usage":               item.Usage,
-			"container_image":     item.ContainerImage,
-			"container_port":      item.ContainerPort,
-			"container_timeout":   item.ContainerTimeout,
-			"host_id":             item.HostID,
-			"template_id":         item.TemplateID,
-			"competition_id":      item.CompetitionID,
-			"source_challenge_id": item.SourceChallengeID,
+			"id":                     item.ID,
+			"name":                   item.Name,
+			"description":            item.Description,
+			"category":               item.Category,
+			"points":                 item.Points,
+			"difficulty":             item.Difficulty,
+			"is_active":              item.IsActive,
+			"is_public":              item.IsPublic,
+			"usage":                  item.Usage,
+			"container_image":        item.ContainerImage,
+			"container_port":         item.ContainerPort,
+			"container_timeout":      item.ContainerTimeout,
+			"host_id":                item.HostID,
+			"template_id":            item.TemplateID,
+			"competition_id":         item.CompetitionID,
+			"source_challenge_id":    item.SourceChallengeID,
 			"has_level_one_solution": strings.TrimSpace(item.LevelOneSolution) != "",
-			"created_by":          item.CreatedBy,
-			"created_at":          item.CreatedAt,
-			"updated_at":          item.UpdatedAt,
-			"is_solved":           false,
+			"created_by":             item.CreatedBy,
+			"created_at":             item.CreatedAt,
+			"updated_at":             item.UpdatedAt,
+			"is_solved":              false,
 		}
 		if userID != 0 {
 			var solved int64

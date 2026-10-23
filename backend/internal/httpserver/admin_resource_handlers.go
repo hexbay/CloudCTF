@@ -7,6 +7,8 @@ import (
 
 	"cloudctf/backend/internal/httpserver/response"
 	"cloudctf/backend/internal/models"
+
+	"gorm.io/gorm/clause"
 )
 
 func (srv *Server) adminChallengesHandler(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +34,12 @@ func (srv *Server) adminChallengesHandler(w http.ResponseWriter, r *http.Request
 		db = db.Where("difficulty = ?", difficulty)
 	}
 	if usage != "" {
-		db = db.Where("usage IN ?", strings.Split(usage, ","))
+		values := strings.Split(usage, ",")
+		usageValues := make([]any, len(values))
+		for i, value := range values {
+			usageValues[i] = value
+		}
+		db = db.Where(clause.IN{Column: clause.Column{Name: "usage"}, Values: usageValues})
 	}
 	if competitionID != "" {
 		if competitionID == "null" || competitionID == "none" {

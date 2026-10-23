@@ -1429,6 +1429,7 @@
 }
 
 .dashboard-donut {
+  position: relative;
   display: grid;
   width: 156px;
   height: 156px;
@@ -1436,7 +1437,7 @@
   border-radius: 50%;
 }
 
-.dashboard-donut > div {
+.dashboard-donut-center {
   position: absolute;
   display: grid;
   width: 104px;
@@ -2479,6 +2480,338 @@
   font-size: 18px;
 }
 
+.settings-update-center {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid #e8eef4;
+}
+
+.settings-update-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.settings-update-section-head > div {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-update-section-head h4.ant-typography {
+  margin: 0;
+  color: #0f172a;
+  font-size: 18px;
+}
+
+.settings-update-section-head .ant-typography {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.settings-current-version.ant-tag {
+  margin: 0;
+  padding: 5px 11px;
+  color: #0f766e;
+  background: #ecfdf5;
+  border-color: #ccfbf1;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.settings-update-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.settings-update-panel {
+  display: flex;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 390px;
+  flex-direction: column;
+  border: 1px solid #dfe8f0;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.045);
+}
+
+.settings-update-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 14px 18px;
+  background: linear-gradient(180deg, #ffffff, #fbfdff);
+  border-bottom: 1px solid #edf2f7;
+}
+
+.settings-update-panel-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  color: #0f766e;
+  background: #ecfdf5;
+  border: 1px solid #ccfbf1;
+  border-radius: 12px;
+  font-size: 17px;
+}
+
+.settings-update-panel-head > div {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.settings-update-panel-head small {
+  color: #94a3b8;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.settings-update-panel-head strong {
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.settings-update-panel-head .ant-typography,
+.settings-update-panel-head .ant-tag {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 12px;
+}
+
+.settings-update-panel-body {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.settings-update-empty {
+  display: grid;
+  place-items: center;
+  flex: 1 1 auto;
+  align-content: center;
+  gap: 10px;
+  min-height: 190px;
+  padding: 24px;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px dashed #dbe5ee;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.settings-update-empty > .anticon {
+  color: #0891b2;
+  font-size: 26px;
+}
+
+.settings-update-empty.is-warning > .anticon {
+  color: #d97706;
+}
+
+.settings-update-empty.is-success > .anticon {
+  color: #059669;
+}
+
+.settings-release-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  background: linear-gradient(135deg, #effcf9, #f0f9ff);
+  border: 1px solid #cdeee8;
+  border-radius: 14px;
+}
+
+.settings-release-summary > div {
+  display: grid;
+  gap: 3px;
+}
+
+.settings-release-summary small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.settings-release-summary strong {
+  color: #0f172a;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.settings-release-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.settings-release-meta span {
+  padding: 4px 8px;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px solid #e8eef4;
+  border-radius: 7px;
+  font-size: 11px;
+}
+
+.settings-release-notes {
+  overflow: hidden;
+  max-height: 104px;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.settings-release-notes > :first-child {
+  margin-top: 0;
+}
+
+.settings-release-notes > :last-child {
+  margin-bottom: 0;
+}
+
+.settings-release-notes a {
+  color: #0284c7;
+}
+
+.settings-update-panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 66px;
+  padding: 12px 18px;
+  background: #fbfdff;
+  border-top: 1px solid #edf2f7;
+}
+
+.settings-update-panel-footer > span {
+  overflow: hidden;
+  color: #94a3b8;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-update-panel-footer .ant-btn {
+  flex: 0 0 auto;
+  height: 38px;
+  border-radius: 9px;
+  font-weight: 700;
+}
+
+.settings-manual-update-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.settings-manual-update-form label > span:first-child {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.settings-manual-update-form .ant-input {
+  height: 42px;
+  border-radius: 9px;
+}
+
+.settings-update-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 11px 13px;
+  color: #527085;
+  background: #f0f9ff;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.settings-update-security-note .anticon {
+  margin-top: 2px;
+  color: #0891b2;
+}
+
+.settings-manual-update-form .ant-upload-wrapper,
+.settings-manual-update-form .ant-upload-select {
+  display: block;
+  width: 100%;
+}
+
+.settings-update-dropzone {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 92px;
+  padding: 12px;
+  color: #64748b;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.settings-update-dropzone:hover,
+.settings-update-dropzone:focus-visible {
+  color: #0f766e;
+  background: #f0fdfa;
+  border-color: #5eead4;
+  outline: none;
+}
+
+.settings-update-dropzone:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.settings-update-dropzone.has-file {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+
+.settings-update-dropzone > .anticon {
+  color: #0f766e;
+  font-size: 20px;
+}
+
+.settings-update-dropzone span {
+  max-width: 100%;
+  overflow: hidden;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-update-dropzone small {
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.settings-update-permission-hint {
+  margin: 10px 2px 0;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
 .competition-list-page {
   gap: 12px;
 }
@@ -2704,6 +3037,7 @@
   .challenge-search-form,
   .settings-runtime-grid,
   .settings-info-strip,
+  .settings-update-grid,
   .challenge-form-grid,
   .challenge-form-grid-switches {
     grid-template-columns: 1fr;
@@ -2758,6 +3092,20 @@
   .settings-info-hero {
     padding: 18px;
     border-radius: 18px;
+  }
+
+  .settings-update-section-head,
+  .settings-update-panel-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-update-panel {
+    min-height: 0;
+  }
+
+  .settings-update-panel-footer .ant-btn {
+    width: 100%;
   }
 
   .resource-toolbar {

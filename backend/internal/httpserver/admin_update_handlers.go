@@ -3,7 +3,9 @@ package httpserver
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -131,6 +133,89 @@ func (srv *Server) adminUpdateApplyHandler(w http.ResponseWriter, r *http.Reques
 	})
 }
 
+func (srv *Server) adminUpdateUploadHandler(w http.ResponseWriter, r *http.Request) {
+	user, ok := srv.currentUserFromRequest(r)
+	if !ok {
+		response.JSON(w, http.StatusUnauthorized, map[string]any{"detail": "auth required"})
+		return
+	}
+	if !user.IsSuperuser {
+		response.JSON(w, http.StatusForbidden, map[string]any{"detail": "只有超级管理员可以安装系统更新"})
+		return
+	}
+	if srv.updater == nil || srv.requestRestart == nil {
+		response.JSON(w, http.StatusServiceUnavailable, map[string]any{"detail": "当前进程不支持自动更新"})
+		return
+	}
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]any{"detail": "无效的上传请求或文件超过大小限制"})
+		return
+	}
+	version := strings.TrimSpace(r.FormValue("version"))
+	if version == "" {
+		response.JSON(w, http.StatusBadRequest, map[string]any{"detail": "必须填写目标版本号"})
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]any{"detail": "必须上传更新二进制文件"})
+		return
+	}
+	defer file.Close()
+	if header.Size <= 0 || header.Size > updater.MaxUploadSize {
+		response.JSON(w, http.StatusBadRequest, map[string]any{"detail": "更新文件为空或超过 512 MiB 限制"})
+		return
+	}
+
+	tmp, err := os.CreateTemp("", "cloudctf-update-upload-*")
+	if err != nil {
+		response.JSON(w, http.StatusInternalServerError, map[string]any{"detail": "无法创建更新暂存文件"})
+		return
+	}
+	tmpPath := tmp.Name()
+	keep := false
+	defer func() {
+		_ = tmp.Close()
+		if !keep {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+	if err := tmp.Chmod(0o600); err != nil {
+		response.JSON(w, http.StatusInternalServerError, map[string]any{"detail": "无法保护更新暂存文件"})
+		return
+	}
+	written, err := io.Copy(tmp, io.LimitReader(file, updater.MaxUploadSize+1))
+	if err != nil || written != header.Size || written > updater.MaxUploadSize {
+		response.JSON(w, http.StatusBadRequest, map[string]any{"detail": "更新文件上传不完整或超过大小限制"})
+		return
+	}
+	if err := tmp.Sync(); err != nil {
+		response.JSON(w, http.StatusInternalServerError, map[string]any{"detail": "无法写入更新暂存文件"})
+		return
+	}
+	if err := tmp.Close(); err != nil {
+		response.JSON(w, http.StatusInternalServerError, map[string]any{"detail": "无法关闭更新暂存文件"})
+		return
+	}
+	if err := srv.updater.ValidateUploaded(version, tmpPath); err != nil {
+		response.JSON(w, http.StatusBadRequest, map[string]any{"detail": err.Error()})
+		return
+	}
+
+	job, started := srv.updateJob.begin(version, srv.currentVersion())
+	if !started {
+		response.JSON(w, http.StatusConflict, map[string]any{"detail": "已有更新任务正在进行", "job": job})
+		return
+	}
+	keep = true
+	go srv.runManualSystemUpdateJob(job.ID, version, tmpPath, user, r.RemoteAddr, r.UserAgent())
+	response.JSON(w, http.StatusAccepted, map[string]any{
+		"success": true,
+		"message": "manual update started",
+		"job":     job,
+	})
+}
+
 func (srv *Server) adminUpdateStatusHandler(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]any{
 		"success":         true,
@@ -140,6 +225,24 @@ func (srv *Server) adminUpdateStatusHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (srv *Server) runSystemUpdateJob(jobID, tag string, user models.User, remoteAddr, userAgent string) {
+	srv.runSystemUpdateJobWith(jobID, tag, "备份完成，正在下载并校验新版本", user, remoteAddr, userAgent, func(ctx context.Context) (updater.ApplyResult, error) {
+		return srv.updater.Apply(ctx, tag)
+	})
+}
+
+func (srv *Server) runManualSystemUpdateJob(jobID, version, uploadPath string, user models.User, remoteAddr, userAgent string) {
+	defer os.Remove(uploadPath)
+	srv.runSystemUpdateJobWith(jobID, version, "备份完成，正在校验并安装上传文件", user, remoteAddr, userAgent, func(ctx context.Context) (updater.ApplyResult, error) {
+		return srv.updater.ApplyUploaded(ctx, version, uploadPath)
+	})
+}
+
+func (srv *Server) runSystemUpdateJobWith(
+	jobID, tag, installMessage string,
+	user models.User,
+	remoteAddr, userAgent string,
+	apply func(context.Context) (updater.ApplyResult, error),
+) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
@@ -161,10 +264,10 @@ func (srv *Server) runSystemUpdateJob(jobID, tag string, user models.User, remot
 	srv.updateJob.update(jobID, func(job *updateJobSnapshot) {
 		job.Backup = backup
 		job.Stage = "download"
-		job.Message = "备份完成，正在下载并校验新版本"
+		job.Message = installMessage
 	})
 
-	result, err := srv.updater.Apply(ctx, tag)
+	result, err := apply(ctx)
 	if err != nil {
 		srv.logger.Error("system update failed", "tag", tag, "username", user.Username, "error", err)
 		srv.updateJob.update(jobID, func(job *updateJobSnapshot) {

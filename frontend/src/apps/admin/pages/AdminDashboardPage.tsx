@@ -694,7 +694,7 @@ function StatusDistribution({ items }: { items: Array<{ label: string; value: nu
     <div className="dashboard-status-distribution">
       <div className="dashboard-donut">
         <ReactECharts option={option} notMerge lazyUpdate className="dashboard-echart dashboard-echart-donut" />
-        <div>
+        <div className="dashboard-donut-center">
           <strong>{formatNumber(total)}</strong>
           <span>赛事池</span>
         </div>

@@ -24,6 +24,9 @@ import (
 
 const maxAssetSize int64 = 512 << 20
 
+// MaxUploadSize is the maximum accepted manual update binary size.
+const MaxUploadSize int64 = maxAssetSize
+
 var (
 	repositoryPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$`)
 	semverPattern     = regexp.MustCompile(`^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$`)
@@ -308,6 +311,146 @@ func (s *Service) Apply(ctx context.Context, requestedTag string) (ApplyResult, 
 	}, nil
 }
 
+// ApplyUploaded installs a manually uploaded CloudCTF binary. The upload is
+// hashed locally, so a separate checksum file is not required.
+func (s *Service) ApplyUploaded(ctx context.Context, requestedVersion, uploadPath string) (ApplyResult, error) {
+	s.applyMu.Lock()
+	defer s.applyMu.Unlock()
+
+	requestedVersion = normalizeVersion(requestedVersion)
+	if err := s.validateUploaded(requestedVersion, uploadPath); err != nil {
+		return ApplyResult{}, err
+	}
+	select {
+	case <-ctx.Done():
+		return ApplyResult{}, ctx.Err()
+	default:
+	}
+
+	source, err := os.Open(uploadPath)
+	if err != nil {
+		return ApplyResult{}, fmt.Errorf("打开上传文件失败：%w", err)
+	}
+	defer source.Close()
+	sourceInfo, err := source.Stat()
+	if err != nil {
+		return ApplyResult{}, fmt.Errorf("读取上传文件信息失败：%w", err)
+	}
+
+	executable, err := s.executablePath()
+	if err != nil {
+		return ApplyResult{}, err
+	}
+	info, err := os.Stat(executable)
+	if err != nil {
+		return ApplyResult{}, fmt.Errorf("inspect current executable: %w", err)
+	}
+	stagingDir := filepath.Dir(executable)
+	if s.persistent {
+		if s.persistentDir == "" {
+			return ApplyResult{}, errors.New("persistent update directory is not configured")
+		}
+		stagingDir = filepath.Join(s.persistentDir, ".staging")
+		if err := os.MkdirAll(stagingDir, 0o700); err != nil {
+			return ApplyResult{}, fmt.Errorf("create persistent update staging directory: %w", err)
+		}
+	}
+	tmp, err := os.CreateTemp(stagingDir, ".cloudctf-manual-update-*")
+	if err != nil {
+		return ApplyResult{}, fmt.Errorf("create update file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	keepTemp := false
+	defer func() {
+		_ = tmp.Close()
+		if !keepTemp {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	hasher := sha256.New()
+	written, err := io.Copy(io.MultiWriter(tmp, hasher), io.LimitReader(source, maxAssetSize+1))
+	if err != nil {
+		return ApplyResult{}, fmt.Errorf("保存上传文件失败：%w", err)
+	}
+	if written != sourceInfo.Size() || written > maxAssetSize {
+		return ApplyResult{}, errors.New("上传文件不完整或超过大小限制")
+	}
+	if err := validateLinuxBinary(tmp, s.goarch); err != nil {
+		return ApplyResult{}, err
+	}
+	mode := info.Mode().Perm()
+	if mode&0o111 == 0 {
+		mode |= 0o755
+	}
+	if err := tmp.Chmod(mode); err != nil {
+		return ApplyResult{}, fmt.Errorf("make update executable: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		return ApplyResult{}, fmt.Errorf("flush update file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return ApplyResult{}, fmt.Errorf("close update file: %w", err)
+	}
+
+	actualHash := hex.EncodeToString(hasher.Sum(nil))
+	previousVersion := s.version
+	backupPath := executable + ".previous"
+	installMode := "in_place"
+	if s.persistent {
+		backupPath, err = installPersistentUpdate(s.persistentDir, executable, previousVersion, requestedVersion, actualHash, tmpPath)
+		installMode = "persistent"
+	} else {
+		err = installUpdate(executable, tmpPath, backupPath)
+	}
+	if err != nil {
+		return ApplyResult{}, err
+	}
+	keepTemp = true
+	s.version = requestedVersion
+	return ApplyResult{
+		PreviousVersion: previousVersion,
+		Version:         requestedVersion,
+		AssetName:       s.assetName(),
+		BackupPath:      backupPath,
+		Restarting:      true,
+		InstallMode:     installMode,
+	}, nil
+}
+
+// ValidateUploaded validates a manual update before the update job creates a
+// database backup. ApplyUploaded repeats these checks before installation.
+func (s *Service) ValidateUploaded(requestedVersion, uploadPath string) error {
+	s.applyMu.Lock()
+	defer s.applyMu.Unlock()
+	return s.validateUploaded(normalizeVersion(requestedVersion), uploadPath)
+}
+
+func (s *Service) validateUploaded(requestedVersion, uploadPath string) error {
+	if s.goos != "linux" || (s.goarch != "amd64" && s.goarch != "arm64") {
+		return fmt.Errorf("manual updates are not available for %s/%s", s.goos, s.goarch)
+	}
+	if _, ok := parseSemver(requestedVersion); !ok {
+		return errors.New("更新版本必须使用语义化版本号，例如 v1.0.18")
+	}
+	if !isNewerVersion(requestedVersion, s.version) {
+		return fmt.Errorf("上传版本 %s 必须高于当前版本 %s", requestedVersion, s.version)
+	}
+	source, err := os.Open(uploadPath)
+	if err != nil {
+		return fmt.Errorf("打开上传文件失败：%w", err)
+	}
+	defer source.Close()
+	sourceInfo, err := source.Stat()
+	if err != nil {
+		return fmt.Errorf("读取上传文件信息失败：%w", err)
+	}
+	if sourceInfo.Size() <= 0 || sourceInfo.Size() > maxAssetSize {
+		return fmt.Errorf("上传文件大小无效：%d", sourceInfo.Size())
+	}
+	return validateLinuxBinary(source, s.goarch)
+}
+
 func validateLinuxBinary(file *os.File, arch string) error {
 	header := make([]byte, 20)
 	if _, err := file.ReadAt(header, 0); err != nil {
@@ -347,7 +490,7 @@ func (s *Service) latestRelease(ctx context.Context) (Release, error) {
 	endpoint := fmt.Sprintf("%s/repos/%s/releases/latest", s.apiBaseURL, s.repository)
 	var release Release
 	if err := s.getJSON(ctx, endpoint, &release); err != nil {
-		return release, fmt.Errorf("get latest GitHub release: %w", err)
+		return release, fmt.Errorf("获取最新 GitHub Release 失败：%w", err)
 	}
 	if release.Draft || release.Prerelease || strings.TrimSpace(release.TagName) == "" {
 		return release, errors.New("GitHub returned an invalid latest release")
@@ -488,11 +631,38 @@ func releaseAssets(release Release, binaryName string) (Asset, Asset, bool) {
 
 func githubStatusError(response *http.Response) error {
 	body, _ := io.ReadAll(io.LimitReader(response.Body, 4<<10))
-	message := strings.TrimSpace(string(body))
+	message := githubErrorMessage(body)
+
+	if response.StatusCode == http.StatusTooManyRequests ||
+		(response.StatusCode == http.StatusForbidden &&
+			(response.Header.Get("X-RateLimit-Remaining") == "0" || strings.Contains(strings.ToLower(message), "rate limit"))) {
+		resetHint := "请稍后重试"
+		if resetAt, err := strconv.ParseInt(response.Header.Get("X-RateLimit-Reset"), 10, 64); err == nil && resetAt > 0 {
+			resetHint = fmt.Sprintf("请在 %s 后重试", time.Unix(resetAt, 0).Local().Format("2006-01-02 15:04:05"))
+		}
+		return fmt.Errorf("GitHub API 请求频率已达上限，%s；配置 UPDATE_GITHUB_TOKEN 可提高请求限额", resetHint)
+	}
+
+	switch response.StatusCode {
+	case http.StatusUnauthorized:
+		return errors.New("GitHub 更新凭据无效，请检查 UPDATE_GITHUB_TOKEN")
+	case http.StatusNotFound:
+		return errors.New("未找到 GitHub Release，请检查 UPDATE_REPOSITORY 配置及仓库发布状态")
+	}
 	if message == "" {
 		message = response.Status
 	}
-	return fmt.Errorf("GitHub returned HTTP %d: %s", response.StatusCode, message)
+	return fmt.Errorf("GitHub 请求失败（HTTP %d）：%s", response.StatusCode, message)
+}
+
+func githubErrorMessage(body []byte) string {
+	var payload struct {
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(body, &payload) == nil && strings.TrimSpace(payload.Message) != "" {
+		return strings.TrimSpace(payload.Message)
+	}
+	return strings.TrimSpace(string(body))
 }
 
 type semver struct {

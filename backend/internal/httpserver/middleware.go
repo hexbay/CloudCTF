@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	defaultRequestBodyLimit int64 = 2 << 20
-	uploadRequestBodyLimit  int64 = 64 << 20
+	defaultRequestBodyLimit      int64 = 2 << 20
+	uploadRequestBodyLimit       int64 = 64 << 20
+	updateUploadRequestBodyLimit int64 = (512 << 20) + (1 << 20)
 )
 
 var requestIDPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{8,128}$`)
@@ -50,6 +51,9 @@ func requestProtection(next http.Handler) http.Handler {
 }
 
 func requestBodyLimit(path string) int64 {
+	if path == "/api-admin/settings/update/upload" {
+		return updateUploadRequestBodyLimit
+	}
 	for _, marker := range []string{"/upload", "/import", "/files", "/images/load"} {
 		if strings.Contains(path, marker) {
 			return uploadRequestBodyLimit

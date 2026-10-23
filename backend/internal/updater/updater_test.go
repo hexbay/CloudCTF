@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +15,67 @@ import (
 	"sync/atomic"
 	"testing"
 )
+
+func TestGitHubStatusErrorProvidesActionableMessages(t *testing.T) {
+	tests := []struct {
+		name       string
+		statusCode int
+		headers    http.Header
+		body       string
+		want       []string
+		notWant    []string
+	}{
+		{
+			name:       "rate limit",
+			statusCode: http.StatusForbidden,
+			headers:    http.Header{"X-Ratelimit-Remaining": []string{"0"}},
+			body:       `{"message":"API rate limit exceeded for 207.32.218.91."}`,
+			want:       []string{"GitHub API 请求频率已达上限", "UPDATE_GITHUB_TOKEN"},
+			notWant:    []string{"207.32.218.91", `{"message"`},
+		},
+		{
+			name:       "invalid token",
+			statusCode: http.StatusUnauthorized,
+			body:       `{"message":"Bad credentials"}`,
+			want:       []string{"GitHub 更新凭据无效", "UPDATE_GITHUB_TOKEN"},
+		},
+		{
+			name:       "release not found",
+			statusCode: http.StatusNotFound,
+			body:       `{"message":"Not Found"}`,
+			want:       []string{"未找到 GitHub Release", "UPDATE_REPOSITORY"},
+		},
+		{
+			name:       "generic GitHub error",
+			statusCode: http.StatusBadGateway,
+			body:       `{"message":"upstream unavailable"}`,
+			want:       []string{"HTTP 502", "upstream unavailable"},
+			notWant:    []string{`{"message"`},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			response := &http.Response{
+				StatusCode: test.statusCode,
+				Status:     http.StatusText(test.statusCode),
+				Header:     test.headers,
+				Body:       io.NopCloser(strings.NewReader(test.body)),
+			}
+			message := githubStatusError(response).Error()
+			for _, fragment := range test.want {
+				if !strings.Contains(message, fragment) {
+					t.Errorf("error %q does not contain %q", message, fragment)
+				}
+			}
+			for _, fragment := range test.notWant {
+				if strings.Contains(message, fragment) {
+					t.Errorf("error %q unexpectedly contains %q", message, fragment)
+				}
+			}
+		})
+	}
+}
 
 func TestIsNewerVersion(t *testing.T) {
 	tests := []struct {
@@ -32,6 +94,64 @@ func TestIsNewerVersion(t *testing.T) {
 		if got := isNewerVersion(test.candidate, test.current); got != test.want {
 			t.Errorf("isNewerVersion(%q, %q) = %v, want %v", test.candidate, test.current, got, test.want)
 		}
+	}
+}
+
+func TestApplyUploadedInstallsBinaryWithoutChecksumFile(t *testing.T) {
+	dir := t.TempDir()
+	currentPath := filepath.Join(dir, "cloudctf-api")
+	uploadPath := filepath.Join(dir, "cloudctf-linux-amd64")
+	currentBinary := fakeELF("amd64")
+	currentBinary = append(currentBinary, []byte("current")...)
+	uploadedBinary := fakeELF("amd64")
+	uploadedBinary = append(uploadedBinary, []byte("uploaded")...)
+	if err := os.WriteFile(currentPath, currentBinary, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(uploadPath, uploadedBinary, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	service := New(Config{
+		Version: "v1.0.16", Executable: currentPath,
+		GOOS: "linux", GOARCH: "amd64",
+	})
+	result, err := service.ApplyUploaded(context.Background(), "v1.0.17", uploadPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Version != "v1.0.17" || result.PreviousVersion != "v1.0.16" || result.AssetName != "cloudctf-linux-amd64" {
+		t.Fatalf("unexpected result: %+v", result)
+	}
+	installed, err := os.ReadFile(currentPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(installed) != string(uploadedBinary) {
+		t.Fatal("uploaded binary was not installed")
+	}
+	if _, err := os.Stat(currentPath + ".previous"); err != nil {
+		t.Fatalf("previous executable was not preserved: %v", err)
+	}
+}
+
+func TestApplyUploadedRejectsInvalidBinaryAndVersion(t *testing.T) {
+	dir := t.TempDir()
+	currentPath := filepath.Join(dir, "cloudctf-api")
+	if err := os.WriteFile(currentPath, fakeELF("amd64"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	invalidPath := filepath.Join(dir, "invalid")
+	if err := os.WriteFile(invalidPath, make([]byte, 64), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	service := New(Config{Version: "v1.0.16", Executable: currentPath, GOOS: "linux", GOARCH: "amd64"})
+
+	if _, err := service.ApplyUploaded(context.Background(), "v1.0.16", invalidPath); err == nil || !strings.Contains(err.Error(), "必须高于当前版本") {
+		t.Fatalf("expected version rejection, got %v", err)
+	}
+	if _, err := service.ApplyUploaded(context.Background(), "v1.0.17", invalidPath); err == nil || !strings.Contains(err.Error(), "not a 64-bit Linux ELF") {
+		t.Fatalf("expected binary rejection, got %v", err)
 	}
 }
 

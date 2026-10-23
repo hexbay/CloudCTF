@@ -1,4 +1,5 @@
 import {
+  CheckCircleFilled,
   ClearOutlined,
   CloudDownloadOutlined,
   DatabaseOutlined,
@@ -12,6 +13,7 @@ import {
   RocketOutlined,
   RollbackOutlined,
   SaveOutlined,
+  SafetyCertificateOutlined,
   SettingOutlined,
   ThunderboltOutlined,
   UploadOutlined,
@@ -35,6 +37,8 @@ import {
   Upload,
   message,
 } from "antd";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ColumnsType } from "antd/es/table";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -145,6 +149,8 @@ export function AdminSettingsPage() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [updateChecking, setUpdateChecking] = useState(false);
   const [updateApplying, setUpdateApplying] = useState(false);
+  const [manualUpdateFile, setManualUpdateFile] = useState<File | null>(null);
+  const [manualUpdateVersion, setManualUpdateVersion] = useState("");
   const [canInstallUpdates, setCanInstallUpdates] = useState(false);
 
   const activeTabKey = settingsTabKeys.includes((tabKey || "") as (typeof settingsTabKeys)[number])
@@ -292,6 +298,49 @@ export function AdminSettingsPage() {
         } catch (error) {
           message.destroy("system-update");
           message.error(error instanceof Error ? error.message : "在线更新失败");
+          setUpdateApplying(false);
+        }
+      },
+    });
+  }
+
+  function applyManualUpdate() {
+    const targetVersion = manualUpdateVersion.trim();
+    if (!manualUpdateFile) {
+      message.warning("请选择 CloudCTF Linux 二进制文件");
+      return;
+    }
+    if (!/^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(targetVersion)) {
+      message.warning("请输入有效版本号，例如 v1.0.18");
+      return;
+    }
+    modal.confirm({
+      title: `手动更新到 ${targetVersion}`,
+      content: `将上传 ${manualUpdateFile.name}。系统会自行计算校验值、验证 Linux ELF 与 CPU 架构，并在安装前自动创建数据备份。确认继续？`,
+      okText: "上传并安装",
+      cancelText: "取消",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setUpdateApplying(true);
+        try {
+          const formData = new FormData();
+          formData.append("version", targetVersion);
+          formData.append("file", manualUpdateFile);
+          const result = await adminApi.create<{ job?: UpdateJob }>(
+            "/api-admin/settings/update/upload",
+            formData,
+          );
+          message.loading({
+            content: `文件上传完成，正在校验并安装 ${targetVersion}…`,
+            key: "system-update",
+            duration: 0,
+          });
+          await waitForUpdatedService(targetVersion, result.job?.id);
+          message.success({ content: `已更新到 ${targetVersion}`, key: "system-update", duration: 2 });
+          window.location.reload();
+        } catch (error) {
+          message.destroy("system-update");
+          message.error(error instanceof Error ? error.message : "手动更新失败");
           setUpdateApplying(false);
         }
       },
@@ -649,38 +698,149 @@ export function AdminSettingsPage() {
                     <InfoItem key={fact.label} label={fact.label} value={fact.value} />
                   ))}
                 </div>
-                {updateInfo && (
-                  <Card
-                    size="small"
-                    title={`在线更新 · ${updateInfo.repository}`}
-                    style={{ marginTop: 20 }}
-                    extra={updateInfo.release_url ? <Typography.Link href={updateInfo.release_url} target="_blank" rel="noreferrer">查看 GitHub Release</Typography.Link> : null}
-                  >
-                    {!updateInfo.supported ? (
-                      <Alert type="warning" showIcon message="当前环境不支持在线更新" description={updateInfo.reason} />
-                    ) : updateInfo.update_available ? (
-                      <Space direction="vertical" size={12} style={{ width: "100%" }}>
-                        <Alert
-                          type="info"
-                          showIcon
-                          message={`发现新版本 ${updateInfo.latest_version}`}
-                          description={`${updateInfo.asset_name || "发布文件"} · ${formatBytes(updateInfo.asset_size)} · 发布于 ${formatTime(updateInfo.published_at) || "-"}`}
-                        />
-                        {updateInfo.release_notes && (
-                          <Typography.Paragraph ellipsis={{ rows: 6, expandable: true, symbol: "展开发布说明" }} style={{ whiteSpace: "pre-wrap", marginBottom: 0 }}>
-                            {updateInfo.release_notes}
-                          </Typography.Paragraph>
+                <section className="settings-update-center">
+                  <div className="settings-update-section-head">
+                    <div>
+                      <Typography.Title level={4}>版本更新</Typography.Title>
+                      <Typography.Text>通过 GitHub Release 在线升级，或上传本地二进制完成更新。</Typography.Text>
+                    </div>
+                    <Tag className="settings-current-version">当前 {systemVersion}</Tag>
+                  </div>
+
+                  <div className="settings-update-grid">
+                    <article className="settings-update-panel settings-update-panel-online">
+                      <header className="settings-update-panel-head">
+                        <span className="settings-update-panel-icon"><CloudDownloadOutlined /></span>
+                        <div>
+                          <small>GITHUB RELEASE</small>
+                          <strong>在线更新</strong>
+                        </div>
+                        {updateInfo?.release_url ? (
+                          <Typography.Link href={updateInfo.release_url} target="_blank" rel="noreferrer">查看 Release</Typography.Link>
+                        ) : null}
+                      </header>
+
+                      <div className="settings-update-panel-body">
+                        {!updateInfo ? (
+                          <div className="settings-update-empty">
+                            <InfoCircleOutlined />
+                            <span>点击“检查更新”获取最新发布版本。</span>
+                          </div>
+                        ) : !updateInfo.supported ? (
+                          <div className="settings-update-empty is-warning">
+                            <InfoCircleOutlined />
+                            <span>{updateInfo.reason || "当前环境不支持在线更新"}</span>
+                          </div>
+                        ) : updateInfo.update_available ? (
+                          <>
+                            <div className="settings-release-summary">
+                              <div>
+                                <small>发现新版本</small>
+                                <strong>{updateInfo.latest_version}</strong>
+                              </div>
+                              <Tag color="cyan">可更新</Tag>
+                            </div>
+                            <div className="settings-release-meta">
+                              <span>{updateInfo.asset_name || "发布文件"}</span>
+                              <span>{formatBytes(updateInfo.asset_size)}</span>
+                              <span>{formatTime(updateInfo.published_at) || "发布时间未知"}</span>
+                            </div>
+                            {updateInfo.release_notes ? (
+                              <div className="settings-release-notes">
+                                <ReactMarkdown
+                                  remarkPlugins={[remarkGfm]}
+                                  components={{ a: ({ children, ...props }) => <a {...props} target="_blank" rel="noreferrer">{children}</a> }}
+                                >
+                                  {updateInfo.release_notes}
+                                </ReactMarkdown>
+                              </div>
+                            ) : null}
+                          </>
+                        ) : (
+                          <div className="settings-update-empty is-success">
+                            <CheckCircleFilled />
+                            <span>当前已是最新版本</span>
+                          </div>
                         )}
-                        <Button type="primary" danger icon={<CloudDownloadOutlined />} loading={updateApplying} disabled={!canInstallUpdates} onClick={applyUpdate}>
-                          下载并更新到 {updateInfo.latest_version}
+                      </div>
+
+                      <footer className="settings-update-panel-footer">
+                        <span>{updateInfo?.repository || "hexbay/CloudCTF"}</span>
+                        <Button
+                          type="primary"
+                          icon={<CloudDownloadOutlined />}
+                          loading={updateApplying}
+                          disabled={!canInstallUpdates || !updateInfo?.supported || !updateInfo.update_available}
+                          onClick={applyUpdate}
+                        >
+                          {updateInfo?.update_available ? `更新到 ${updateInfo.latest_version}` : "暂无可用更新"}
                         </Button>
-                        {!canInstallUpdates && <Typography.Text type="secondary">只有超级管理员可以执行系统更新。</Typography.Text>}
-                      </Space>
-                    ) : (
-                      <Alert type="success" showIcon message="当前已是最新版本" description={`当前版本：${updateInfo.current_version}`} />
-                    )}
-                  </Card>
-                )}
+                      </footer>
+                    </article>
+
+                    <article className="settings-update-panel settings-update-panel-manual">
+                      <header className="settings-update-panel-head">
+                        <span className="settings-update-panel-icon"><UploadOutlined /></span>
+                        <div>
+                          <small>LOCAL BINARY</small>
+                          <strong>手动安装</strong>
+                        </div>
+                        <Tag bordered={false}>无需 .sha256</Tag>
+                      </header>
+
+                      <div className="settings-update-panel-body settings-manual-update-form">
+                        <div className="settings-update-security-note">
+                          <SafetyCertificateOutlined />
+                          <span>服务端自动计算 SHA-256，并验证 ELF 格式、CPU 架构和版本。</span>
+                        </div>
+                        <label>
+                          <span>目标版本</span>
+                          <Input
+                            value={manualUpdateVersion}
+                            onChange={(event) => setManualUpdateVersion(event.target.value)}
+                            placeholder="例如 v1.0.18"
+                            disabled={updateApplying}
+                          />
+                        </label>
+                        <label>
+                          <span>更新文件</span>
+                          <Upload
+                            maxCount={1}
+                            showUploadList={false}
+                            beforeUpload={(file) => {
+                              if (file.size <= 0 || file.size > 512 * 1024 * 1024) {
+                                message.error("更新文件必须小于 512 MiB");
+                                return Upload.LIST_IGNORE;
+                              }
+                              setManualUpdateFile(file);
+                              return false;
+                            }}
+                          >
+                            <button type="button" className={`settings-update-dropzone ${manualUpdateFile ? "has-file" : ""}`} disabled={updateApplying}>
+                              <UploadOutlined />
+                              <span>{manualUpdateFile ? manualUpdateFile.name : "选择 Linux 二进制文件"}</span>
+                              <small>{manualUpdateFile ? formatBytes(manualUpdateFile.size) : "amd64 / arm64 · 最大 512 MiB"}</small>
+                            </button>
+                          </Upload>
+                        </label>
+                      </div>
+
+                      <footer className="settings-update-panel-footer">
+                        <span>安装前自动创建数据备份</span>
+                        <Button
+                          type="primary"
+                          icon={<RocketOutlined />}
+                          loading={updateApplying}
+                          disabled={!canInstallUpdates || !manualUpdateFile || !manualUpdateVersion.trim()}
+                          onClick={applyManualUpdate}
+                        >
+                          上传并安装
+                        </Button>
+                      </footer>
+                    </article>
+                  </div>
+                  {!canInstallUpdates ? <p className="settings-update-permission-hint">只有超级管理员可以执行系统更新。</p> : null}
+                </section>
               </Card>
             ),
           },

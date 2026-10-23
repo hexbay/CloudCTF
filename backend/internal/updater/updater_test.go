@@ -231,6 +231,41 @@ func TestCheckUsesConfiguredHTTPProxy(t *testing.T) {
 	}
 }
 
+func TestCheckCachesAutomaticRequestsAndRefreshBypassesCache(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		_ = json.NewEncoder(w).Encode(Release{
+			TagName: "v0.0.6",
+			Assets: []Asset{
+				{Name: "cloudctf-linux-amd64", Size: 64},
+				{Name: "cloudctf-linux-amd64.sha256", Size: 1},
+			},
+		})
+	}))
+	defer server.Close()
+
+	service := New(Config{
+		Repository: "hexbay/CloudCTF", APIBaseURL: server.URL, Enabled: true,
+		Version: "v0.0.5", GOOS: "linux", GOARCH: "amd64", HTTPClient: server.Client(),
+	})
+	if _, err := service.Check(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Check(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("automatic checks made %d GitHub requests, want 1", got)
+	}
+	if _, err := service.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Fatalf("explicit refresh made total %d GitHub requests, want 2", got)
+	}
+}
+
 func TestCheckAndApply(t *testing.T) {
 	newBinary := fakeELF("amd64")
 	sum := sha256.Sum256(newBinary)

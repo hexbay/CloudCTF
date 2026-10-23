@@ -84,7 +84,13 @@ func (srv *Server) adminUpdateCheckHandler(w http.ResponseWriter, r *http.Reques
 		response.JSON(w, http.StatusServiceUnavailable, map[string]any{"detail": "update service unavailable"})
 		return
 	}
-	result, err := srv.updater.Check(r.Context())
+	var result updater.CheckResult
+	var err error
+	if r.URL.Query().Get("refresh") == "true" {
+		result, err = srv.updater.Refresh(r.Context())
+	} else {
+		result, err = srv.updater.Check(r.Context())
+	}
 	if err != nil {
 		srv.logger.Error("update check failed", "error", err)
 		response.JSON(w, http.StatusBadGateway, map[string]any{"detail": err.Error()})

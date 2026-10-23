@@ -22,7 +22,11 @@ import (
 	"time"
 )
 
-const maxAssetSize int64 = 512 << 20
+const (
+	maxAssetSize             int64 = 512 << 20
+	updateCheckCacheTTL            = 15 * time.Minute
+	updateCheckErrorCacheTTL       = time.Minute
+)
 
 // MaxUploadSize is the maximum accepted manual update binary size.
 const MaxUploadSize int64 = maxAssetSize
@@ -60,6 +64,9 @@ type Service struct {
 	goos          string
 	goarch        string
 	applyMu       sync.Mutex
+	checkCachedAt time.Time
+	checkResult   CheckResult
+	checkErr      error
 }
 
 type Release struct {
@@ -164,8 +171,27 @@ func newHTTPClient(proxy string) *http.Client {
 }
 
 func (s *Service) Check(ctx context.Context) (CheckResult, error) {
+	return s.check(ctx, false)
+}
+
+// Refresh bypasses the update-check cache. It is intended for explicit checks
+// initiated by an administrator; automatic checks should use Check.
+func (s *Service) Refresh(ctx context.Context) (CheckResult, error) {
+	return s.check(ctx, true)
+}
+
+func (s *Service) check(ctx context.Context, force bool) (CheckResult, error) {
 	s.applyMu.Lock()
 	defer s.applyMu.Unlock()
+	if !force && !s.checkCachedAt.IsZero() {
+		ttl := updateCheckCacheTTL
+		if s.checkErr != nil {
+			ttl = updateCheckErrorCacheTTL
+		}
+		if time.Since(s.checkCachedAt) < ttl {
+			return s.checkResult, s.checkErr
+		}
+	}
 
 	installMode := "in_place"
 	if s.persistent {
@@ -174,10 +200,12 @@ func (s *Service) Check(ctx context.Context) (CheckResult, error) {
 	result := CheckResult{CurrentVersion: s.version, Repository: s.repository, InstallMode: installMode}
 	if reason := s.unsupportedReason(); reason != "" {
 		result.Reason = reason
+		s.cacheCheck(result, nil)
 		return result, nil
 	}
 	release, err := s.latestRelease(ctx)
 	if err != nil {
+		s.cacheCheck(result, err)
 		return result, err
 	}
 	assetName := s.assetName()
@@ -191,16 +219,25 @@ func (s *Service) Check(ctx context.Context) (CheckResult, error) {
 	result.Supported = ok
 	if !ok {
 		result.Reason = fmt.Sprintf("release %s is missing %s or %s.sha256", release.TagName, assetName, assetName)
+		s.cacheCheck(result, nil)
 		return result, nil
 	}
 	if asset.Size <= 0 || asset.Size > maxAssetSize || checksum.Size <= 0 {
 		result.Supported = false
 		result.Reason = "release assets have an invalid size"
+		s.cacheCheck(result, nil)
 		return result, nil
 	}
 	result.AssetSize = asset.Size
 	result.UpdateAvailable = isNewerVersion(release.TagName, s.version)
+	s.cacheCheck(result, nil)
 	return result, nil
+}
+
+func (s *Service) cacheCheck(result CheckResult, err error) {
+	s.checkCachedAt = time.Now()
+	s.checkResult = result
+	s.checkErr = err
 }
 
 func (s *Service) Apply(ctx context.Context, requestedTag string) (ApplyResult, error) {

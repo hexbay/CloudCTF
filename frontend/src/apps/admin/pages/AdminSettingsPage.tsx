@@ -244,7 +244,10 @@ export function AdminSettingsPage() {
   async function checkForUpdates(announce = true) {
     setUpdateChecking(true);
     try {
-      const result = await adminApi.get<UpdateInfo>("/api-admin/settings/update/check");
+      const endpoint = announce
+        ? "/api-admin/settings/update/check?refresh=true"
+        : "/api-admin/settings/update/check";
+      const result = await adminApi.get<UpdateInfo>(endpoint);
       setUpdateInfo(result);
       if (!announce) {
         return;

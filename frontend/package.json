@@ -14,7 +14,7 @@
     "@ant-design/icons": "^6.3.4",
     "@ant-design/v5-patch-for-react-19": "^1.0.3",
     "@vitejs/plugin-react": "^6.1.2",
-    "antd": "^5.25.4",
+    "antd": "^6.6.7",
     "dayjs": "^1.11.23",
     "echarts": "^6.1.0",
     "echarts-for-react": "^3.0.6",

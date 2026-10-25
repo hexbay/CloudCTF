@@ -128,7 +128,7 @@ jobs:
           echo "✅ 前端已就位 backend/internal/web/dist"
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: '1.26'
           cache-dependency-path: backend/go.sum
